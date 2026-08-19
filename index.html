@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>리을의 영어정복 🎀</title>
-    <!-- iOS PWA 홈 화면 추가 설정 -->
+    <!-- iOS PWA 설정 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="리을의 영어정복">
@@ -75,7 +75,7 @@
                             <div class="bg-gradient-to-r from-pink-400 to-rose-400 h-full transition-all duration-300 rounded-full" :style="{ width: (overallProgressRate * 100) + '%' }"></div>
                         </div>
                         <div class="bg-white/80 border border-purple-200 text-purple-600 p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5">
-                            <span>🔒</span> 이전 요일을 마쳐야 다음 단어가 차례대로 열려요!
+                            <span>💡</span> 주차별로 자유롭게 선택하여 학습할 수 있어요!
                         </div>
                     </div>
 
@@ -98,18 +98,20 @@
                 <div class="flex-1 flex flex-col space-y-2 min-h-0">
                     <div class="flex justify-between items-center flex-shrink-0">
                         <h3 class="text-sm font-extrabold text-purple-800 flex items-center gap-1">🎯 주차별 학습 로드맵 ✨</h3>
-                        <button @click="resetProgress" class="text-[11px] font-extrabold text-pink-500 bg-pink-50 hover:bg-pink-100 px-2.5 py-1 rounded-lg border border-pink-200 transition">
-                            🔄 진도 초기화
+                        <button @click="resetAllProgress" class="text-[11px] font-extrabold text-pink-600 bg-pink-100 hover:bg-pink-200 px-3 py-1 rounded-lg border border-pink-300 transition shadow-sm">
+                            🗑️ 전체 진도 초기화
                         </button>
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-2.5 pr-1">
                         <div v-for="week in availableWeeks" :key="week" class="bg-white p-3.5 rounded-2xl shadow-sm space-y-2 border-2 border-purple-50">
                             <div class="flex justify-between items-center">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="font-extrabold text-sm" :class="isWeekUnlocked(week) ? 'text-purple-900' : 'text-slate-300'">🌸 {{ week }}주차</span>
-                                    <span v-if="!isWeekUnlocked(week)" class="text-xs">🔒</span>
-                                    <span v-else-if="isWeekCompleted(week)" class="bg-emerald-100 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full">완주 성공! 🎉</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-sm text-purple-900">🌸 {{ week }}주차</span>
+                                    <span v-if="isWeekCompleted(week)" class="bg-emerald-100 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full">완주 성공! 🎉</span>
+                                    <button @click="resetWeekProgress(week)" class="text-[10px] font-extrabold text-purple-500 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200 transition">
+                                        🔄 이 주차만 초기화
+                                    </button>
                                 </div>
                                 <span class="text-xs font-extrabold text-pink-500">{{ Math.round(getWeekProgressRate(week) * 100) }}%</span>
                             </div>
@@ -165,7 +167,7 @@
                     <div class="flex items-center gap-3">
                         <span class="text-3xl">🏆</span>
                         <div>
-                            <h2 class="text-lg font-black text-purple-900">오늘 공부 완주 성공! 🎉</h2>
+                            <h2 class="text-lg font-black text-purple-900">{{ selectedDay === 'Sat' ? '토요일 주말 복습 성공! 🎉' : '오늘 공부 완주 성공! 🎉' }}</h2>
                             <p class="text-xs font-extrabold text-pink-500">학습한 {{ currentWordList.length }}개 단어의 정답률 결과예요 ✨</p>
                         </div>
                     </div>
@@ -192,8 +194,8 @@
                 </div>
 
                 <div class="flex gap-2 pt-1 border-t border-pink-100 flex-shrink-0">
-                    <button @click="resetDayProgress(true)" class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-200">
-                        🔄 1단계부터
+                    <button @click="resetDayProgressFromUI" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                        🔄 {{ selectedDay === 'Sat' ? '토요일 복습 초기화' : `${selectedDay}요일부터 초기화` }}
                     </button>
                     <button @click="startStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                         🎨 3단계 테스트만
