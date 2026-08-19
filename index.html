@@ -163,6 +163,7 @@
 
             <!-- Daily Review Screen (All Stages Cleared) -->
             <div v-if="isDayCompleted && !stage3Active" class="bg-white p-4.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
+                <!-- 상단 영역: 완주 타이틀 옆으로 초기화 버튼 이동 -->
                 <div class="flex justify-between items-center bg-gradient-to-r from-pink-100 to-purple-100 p-3.5 rounded-2xl border border-pink-200 flex-shrink-0">
                     <div class="flex items-center gap-3">
                         <span class="text-3xl">🏆</span>
@@ -171,8 +172,12 @@
                             <p class="text-xs font-extrabold text-pink-500">학습한 {{ currentWordList.length }}개 단어의 정답률 결과예요 ✨</p>
                         </div>
                     </div>
+                    <!-- 윗쪽으로 이동된 초기화 버튼 -->
+                    <button @click="resetDayProgressFromUI" class="bg-purple-200/80 hover:bg-purple-300 text-purple-800 font-extrabold px-3 py-1.5 rounded-xl text-xs transition border border-purple-300 flex-shrink-0">
+                        🔄 초기화
+                    </button>
                 </div>
-
+            
                 <!-- 2열 단어 리스트 -->
                 <div class="flex-1 overflow-y-auto pr-1">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -192,10 +197,11 @@
                         </div>
                     </div>
                 </div>
-
+            
+                <!-- 하단 영역: 1단계부터 다시 / 3단계만 / 다음 학습으로 버튼 배치 -->
                 <div class="flex gap-2 pt-1 border-t border-pink-100 flex-shrink-0">
-                    <button @click="resetDayProgressFromUI" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
-                        🔄 {{ selectedDay === 'Sat' ? '토요일 복습 초기화' : `${selectedDay}요일부터 초기화` }}
+                    <button @click="restartStage1Only" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                        🔄 1단계 테스트부터 다시
                     </button>
                     <button @click="startStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                         🎨 3단계 테스트만
@@ -205,7 +211,6 @@
                     </button>
                 </div>
             </div>
-
             <!-- STAGE 3: Final Challenge View -->
             <div v-else-if="stage3Active && currentStage3Item" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-2 overflow-hidden">
                 <div class="text-center bg-purple-100 text-purple-700 py-1 px-3 rounded-full text-xs font-extrabold w-fit mx-auto flex-shrink-0">
