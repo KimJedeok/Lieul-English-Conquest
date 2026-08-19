@@ -798,7 +798,15 @@ createApp({
         const handleImgError = (e) => {
             e.target.src = 'https://via.placeholder.com/500x400/fff0f5/db2777?text=No+Image';
         };
-
+        // ==========================================
+        // [신규] 진도율(100%) 유지 + 1단계 재시험 진입 로직
+        // ==========================================
+        const restartStage1Only = () => {
+            // learnedWordIDs 등 학습 완료 데이터는 건드리지 않아 진도율 100% 보존
+            currentIndex.value = 0;
+            currentMode.value = 'practice'; // 서비스 내 1단계 모드 이름
+        };
+        
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
@@ -811,6 +819,7 @@ createApp({
             isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
             resetAllProgress, resetWeekProgress, resetDayProgressFromUI,
+            restartStage1Only, // <-- 신규 등
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
