@@ -14,6 +14,7 @@ createApp({
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         const wordStats = ref({});
+        const isReplayingDay = ref(false);
 
         const recordAttempt = (wordId, isCorrect) => {
             if (!wordId) return;
@@ -802,9 +803,13 @@ createApp({
         // [신규] 진도율(100%) 유지 + 1단계 재시험 진입 로직
         // ==========================================
         const restartStage1Only = () => {
-            // learnedWordIDs 등 학습 완료 데이터는 건드리지 않아 진도율 100% 보존
             currentIndex.value = 0;
-            currentMode.value = 'practice'; // 서비스 내 1단계 모드 이름
+            currentMode.value = 'practice';
+            practiceCount.value = 0;    // 1단계 카운트 초기화
+            practiceText.value = '';   // 입력 텍스트 초기화
+            stage3Active.value = false;
+            isReplayingDay.value = true; // 재시험 모드 ON (완주 화면 숨김)
+            // 날짜를 변경하거나(changeDay, startLesson), 홈으로 갈 때 isReplayingDay.value = false 로 리셋해주면 좋습니다.
         };
         
         return {
@@ -819,6 +824,7 @@ createApp({
             isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
             resetAllProgress, resetWeekProgress, resetDayProgressFromUI,
+            isReplayingDay,
             restartStage1Only, // <-- 신규 등
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
