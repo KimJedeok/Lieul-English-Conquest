@@ -340,6 +340,7 @@ createApp({
         };
 
         const changeDay = (day) => {
+            isReplayingDay.value = false; // 요일 변경 시 재시험 모드 초기화
             selectedDay.value = day;
             resetDayProgress();
         };
@@ -563,6 +564,10 @@ createApp({
                 playErrorSound();
                 if (quizSubStage.value === 2) soundBlindFailCount.value++;
                 quizText.value = '';
+            }
+            // [추가] 마지막 단어까지 모두 완료한 경우 재시험 모드 OFF
+            if (currentIndex.value >= currentWordList.value.length - 1) {
+                isReplayingDay.value = false; // 재시험 모드 종료 -> 완주 결과 화면으로 전환
             }
         };
 
