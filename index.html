@@ -162,7 +162,9 @@
             </div>
 
             <!-- Daily Review Screen (All Stages Cleared) -->
-            <div v-if="isDayCompleted && !stage3Active" class="bg-white p-4.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
+            <!-- 기존: v-if="isDayCompleted && !stage3Active" -->
+            <!-- 변경: !isReplayingDay 추가 -->
+            <div v-if="isDayCompleted && !stage3Active && !isReplayingDay" class="bg-white p-4.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
                 <!-- 상단 영역: 완주 타이틀 옆으로 초기화 버튼 이동 -->
                 <div class="flex justify-between items-center bg-gradient-to-r from-pink-100 to-purple-100 p-3.5 rounded-2xl border border-pink-200 flex-shrink-0">
                     <div class="flex items-center gap-3">
