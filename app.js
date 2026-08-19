@@ -257,7 +257,6 @@ createApp({
 
         const availableWeeks = computed(() => [...new Set(allWords.value.map(w => w.week))].sort((a, b) => a - b));
         
-        // 토요일(Sat) 학습인 경우 해당 주차의 월~금 전체 단어를 복습 대상으로 리턴
         const getWords = (week, day) => {
             if (day === 'Sat') {
                 return allWords.value.filter(w => w.week === week && w.day !== 'Sat');
@@ -276,12 +275,8 @@ createApp({
             return allWordsLearned && satCompletedWeeks.value.includes(week);
         };
 
-        const isWeekUnlocked = (week) => {
-            if (availableWeeks.value.length === 0) return true;
-            if (week === availableWeeks.value[0]) return true;
-            const idx = availableWeeks.value.indexOf(week);
-            return idx > 0 ? isWeekCompleted(availableWeeks.value[idx - 1]) : false;
-        };
+        // 주차 간은 독립 운영 (모든 주차 잠금 해제)
+        const isWeekUnlocked = (week) => true;
 
         const isDayDone = (week, day) => {
             if (day === 'Sat') {
@@ -291,10 +286,10 @@ createApp({
             return words.length > 0 && words.every(w => isLearned(w));
         };
 
+        // 주차 내부 요일 잠금 순서 처리 (독립 방식)
         const isDayUnlocked = (week, day) => {
-            if (!isWeekUnlocked(week)) return false;
             const targetIdx = days.indexOf(day);
-            if (targetIdx === 0) return true;
+            if (targetIdx === 0) return true; // 월요일은 항상 오픈
 
             for (let i = 0; i < targetIdx; i++) {
                 const prevDayWords = getWords(week, days[i]);
@@ -304,6 +299,7 @@ createApp({
         };
 
         const overallProgressRate = computed(() => allWords.value.length === 0 ? 0 : learnedWordIDs.value.length / allWords.value.length);
+        
         const getWeekProgressRate = (week) => {
             const words = allWords.value.filter(w => w.week === week);
             if (words.length === 0) return 0;
@@ -314,11 +310,9 @@ createApp({
 
         const todayLesson = computed(() => {
             for (let w of availableWeeks.value) {
-                if (isWeekUnlocked(w)) {
-                    for (let d of days) {
-                        if (isDayUnlocked(w, d) && !isDayDone(w, d)) {
-                            return { week: w, day: d };
-                        }
+                for (let d of days) {
+                    if (isDayUnlocked(w, d) && !isDayDone(w, d)) {
+                        return { week: w, day: d };
                     }
                 }
             }
@@ -349,6 +343,7 @@ createApp({
             resetDayProgress();
         };
 
+        // 화면 렌더링용 내부 리셋
         const resetDayProgress = (forceStartOver = false) => {
             stage3Active.value = false;
             const firstUnlearnedIdx = currentWordList.value.findIndex(w => !isLearned(w));
@@ -378,6 +373,51 @@ createApp({
             focusInput();
             if (!isDayCompleted.value && currentWord.value) speak(currentWord.value.english, 0.75);
         };
+
+        // ==================== [ 진도 초기화 유틸리티 로직 ] ====================
+
+        // 1. 홈 화면: 전체 초기화
+        const resetAllProgress = () => {
+            if (confirm('정말로 모든 주차의 학습 진도를 초기화하시겠습니까? 🌸')) {
+                learnedWordIDs.value = [];
+                satCompletedWeeks.value = [];
+            }
+        };
+
+        // 2. 홈 화면: 특정 주차만 독립 초기화 (타 주차 보존)
+        const resetWeekProgress = (week) => {
+            if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸\n(다른 주차의 진도는 그대로 보존됩니다)`)) {
+                const weekWordIDs = allWords.value.filter(w => w.week === week).map(w => w.id);
+                learnedWordIDs.value = learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
+                satCompletedWeeks.value = satCompletedWeeks.value.filter(wNum => wNum !== week);
+            }
+        };
+
+        // 3. 학습 완료 화면: 요일별 초기화
+        const resetDayProgressFromUI = () => {
+            const w = currentWeek.value;
+            const d = selectedDay.value;
+
+            if (d === 'Sat') {
+                if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸\n(월~금요일 학습 단어는 삭제되지 않고 유지됩니다)`)) {
+                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => weekNum !== w);
+                    resetDayProgress(true);
+                }
+            } else {
+                const targetIdx = days.indexOf(d);
+                const affectedDays = days.slice(targetIdx, 5); // 선택 요일부터 금요일까지
+                const affectedWords = allWords.value.filter(word => word.week === w && affectedDays.includes(word.day));
+                const affectedIDs = affectedWords.map(word => word.id);
+
+                if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸\n(이전 요일 및 다른 주차의 진도는 안전하게 보존됩니다)`)) {
+                    learnedWordIDs.value = learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
+                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => weekNum !== w);
+                    resetDayProgress(true);
+                }
+            }
+        };
+
+        // =========================================================================
 
         const focusInput = () => {
             nextTick(() => {
@@ -734,13 +774,6 @@ createApp({
             resetDayProgress();
         };
 
-        const resetProgress = () => {
-            if (confirm('정말로 모든 학습 진도를 초기화하시겠습니까? 🌸')) {
-                learnedWordIDs.value = [];
-                satCompletedWeeks.value = [];
-            }
-        };
-
         const getWordImage = (word) => {
             if (!word) return '';
             if (word.imageFileName) {
@@ -777,7 +810,8 @@ createApp({
             availableWeeks, getWords, isLearned, isWeekUnlocked, isWeekCompleted,
             isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
-            isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay, resetProgress,
+            resetAllProgress, resetWeekProgress, resetDayProgressFromUI,
+            isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question
