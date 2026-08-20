@@ -98,11 +98,14 @@ createApp({
         const satWordIndex = ref(0);
         const satQuizList = ref([]);
         const satCorrectCount = ref(0);
-        const satFeedbackMessage = ref('');
+        const feedbackMessage = ref('');
+        const isFeedbackCorrect = ref(true);
         const satComboCount = ref(0);
         const satInputText = ref('');
         const satTimer = ref(5);
         let satTimerInterval = null;
+
+        const satTotalQuestions = computed(() => satQuizList.value.length);
 
         const stopSatTimer = () => {
             if (satTimerInterval) {
@@ -120,8 +123,12 @@ createApp({
                 if (satTimer.value <= 0) {
                     stopSatTimer();
                     playErrorSound();
-                    satFeedbackMessage.value = '⏰ 제한 시간 초과! 다음 문제로 넘어갑니다.';
-                    nextSatQuestion(false);
+                    isFeedbackCorrect.value = false;
+                    feedbackMessage.value = '⏰ 제한 시간 초과! 다음 문제로 넘어갑니다.';
+                    setTimeout(() => {
+                        feedbackMessage.value = '';
+                        nextSatQuestion(false);
+                    }, 1500);
                 }
             }, 1000);
         };
@@ -980,7 +987,7 @@ createApp({
             return sorted.slice(0, count);
         };
         
-        // ==================== [ 개선된 토요일 주말 복습 로직 ] ====================
+        // ==================== [ 토요일 주말 복습 로직 ] ====================
         const startSaturdayReview = () => {
             stopSatTimer();
             activeScreen.value = 'learning';
@@ -992,6 +999,8 @@ createApp({
             satCorrectCount.value = 0;
             satComboCount.value = 0;
             satInputText.value = '';
+            feedbackMessage.value = '';
+            isFeedbackCorrect.value = true;
             satQuizList.value = getWeakWords(15);
 
             if (satQuizList.value.length === 0) {
@@ -1028,33 +1037,11 @@ createApp({
             return chars.join(' ');
         };
 
-        const triggerSatFeedback = (isCorrect) => {
-            if (isCorrect) {
-                satComboCount.value++;
-                const positiveMsgs = [
-                    '✨ 완벽해요! 완벽하게 기억하셨네요!',
-                    '🔥 훌륭해요! 거침없는 정답 행진!',
-                    '🌸 대단합니다! 실력이 대폭 상승 중!',
-                    '💖 정답! 이 기세로 완벽 마감해봅시다!'
-                ];
-                satFeedbackMessage.value = satComboCount.value >= 3 
-                    ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
-                    : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
-            } else {
-                satComboCount.value = 0;
-                const encourageMsgs = [
-                    '💪 괜찮아요! 다음 문제에서 맞히면 됩니다!',
-                    '🌱 소리를 다시 떠올리고 집중해볼까요?',
-                    '✨ 정답을 확인하고 기억에 각인시켜봐요!'
-                ];
-                satFeedbackMessage.value = encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)];
-            }
-        };
-
         const nextSatQuestion = (isCorrect) => {
             stopSatTimer();
-            triggerSatFeedback(isCorrect);
-            if (isCorrect) satCorrectCount.value++;
+            if (isCorrect) {
+                satCorrectCount.value++;
+            }
 
             satWordIndex.value++;
             satInputText.value = '';
@@ -1065,7 +1052,7 @@ createApp({
                 satWordIndex.value = 0;
                 satQuizList.value = getWeakWords(15);
             } 
-            // 2단계 -> 3단계 전환 (3단계 진입시 스피드 게임 시작)
+            // 2단계 -> 3단계 전환
             else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
@@ -1091,35 +1078,41 @@ createApp({
         };
 
         // 토요일 주말 챌린지 정답 제출 함수
-        submitSatAnswer() {
-            // 피드백 표시 중 중복 제출 방지
-            if (this.feedbackMessage) return; 
-            if (!this.satInputText || !this.satInputText.trim()) return;
-        
-            const userInput = this.satInputText.trim().toLowerCase();
-            const targetWord = this.satCurrentWord.english.toLowerCase();
+        const submitSatAnswer = () => {
+            if (feedbackMessage.value) return; 
+            if (!satInputText.value || !satInputText.value.trim()) return;
+            if (!satCurrentWord.value) return;
+
+            const userInput = satInputText.value.trim().toLowerCase();
+            const targetWord = satCurrentWord.value.english.toLowerCase();
             const isCorrect = (userInput === targetWord);
-        
-            // 피드백 상태 반영 및 음성 재생
-            this.isFeedbackCorrect = isCorrect;
+
+            isFeedbackCorrect.value = isCorrect;
             if (isCorrect) {
-                this.satCorrectCount++;
-                this.feedbackMessage = "정답입니다! 👏✨";
-                if (typeof playCorrectSound === 'function') playCorrectSound();
+                satComboCount.value++;
+                const positiveMsgs = [
+                    '✨ 완벽해요! 완벽하게 기억하셨네요!',
+                    '🔥 훌륭해요! 거침없는 정답 행진!',
+                    '🌸 대단합니다! 실력이 대폭 상승 중!',
+                    '💖 정답! 이 기세로 완벽 마감해봅시다!'
+                ];
+                feedbackMessage.value = satComboCount.value >= 3 
+                    ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
+                    : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
+                playCorrectSound();
             } else {
-                this.feedbackMessage = `아쉽네요! 정답은 '${this.satCurrentWord.english}' 입니다. 😢`;
-                if (typeof playWrongSound === 'function') playWrongSound();
+                satComboCount.value = 0;
+                feedbackMessage.value = `아쉽네요! 정답은 '${satCurrentWord.value.english}' 입니다. 😢`;
+                playErrorSound();
             }
-        
-            // 입력창 초기화
-            this.satInputText = '';
-        
-            // 1.5초 동안 피드백을 보여준 후 다음 문제로 이동
+
+            satInputText.value = '';
+
             setTimeout(() => {
-                this.feedbackMessage = '';
-                this.nextSatQuestion();
+                feedbackMessage.value = '';
+                nextSatQuestion(isCorrect);
             }, 1500);
-        }
+        };
 
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
@@ -1137,9 +1130,9 @@ createApp({
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
-            satStage, satWordIndex, satQuizList, satCorrectCount, satFeedbackMessage, satComboCount, satCurrentWord,
-            satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback,
-            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass
+            satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
+            satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
+            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions
         };
     }
 }).mount('#app');
