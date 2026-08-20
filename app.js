@@ -2,25 +2,104 @@ const { createApp, ref, computed, watch, nextTick, onMounted } = Vue;
 
 createApp({
     setup() {
-        // Base State
+        // ==================== [ 유틸리티 함수: 음성 및 효과음 ] ====================
+        const speak = (text, rate = 0.75) => {
+            if (!('speechSynthesis' in window) || !text) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = rate;
+            window.speechSynthesis.speak(utterance);
+        };
+
+        const speakSequence = (word, sentence) => {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const u1 = new SpeechSynthesisUtterance(word);
+            u1.lang = 'en-US';
+            u1.rate = 0.75;
+            u1.onend = () => {
+                if (sentence) {
+                    const u2 = new SpeechSynthesisUtterance(sentence);
+                    u2.lang = 'en-US';
+                    u2.rate = 0.85;
+                    window.speechSynthesis.speak(u2);
+                }
+            };
+            window.speechSynthesis.speak(u1);
+        };
+
+        const playSound = (type) => {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'correct') {
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.4);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, ctx.currentTime);
+                    osc.frequency.setValueAtTime(160, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                } else if (type === 'typing') {
+                    osc.frequency.setValueAtTime(400, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.02, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.05);
+                }
+            } catch (e) {}
+        };
+
+        const playTypingSound = () => playSound('typing');
+        const playErrorSound = () => playSound('error');
+        const playCorrectSound = () => playSound('correct');
+
+        const safeLoadImagesFromIDB = async () => {
+            if (typeof window.loadImagesFromIDB === 'function') {
+                return await window.loadImagesFromIDB();
+            }
+            return {};
+        };
+
+        const safeSaveImagesToIDB = async (imgs) => {
+            if (typeof window.saveImagesToIDB === 'function') {
+                await window.saveImagesToIDB(imgs);
+            }
+        };
+
+        // ==================== [ Base State ] ====================
         const activeScreen = ref('home');
         const allWords = ref([]);
         const learnedWordIDs = ref([]);
-        const satCompletedWeeks = ref([]); // 토요일 복습 완료 주차 관리
+        const satCompletedWeeks = ref([]);
         const savedDate = ref('');
         const imageMap = ref({});
         const currentWeek = ref(1);
         const selectedDay = ref('Mon');
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-        // 토요일 주말 종합 복습 전용 상태값
-        const satStage = ref(1);             // 1: 힌트, 2: 음성/뜻, 3: 스피드
-        const satWordIndex = ref(0);         // 현재 출제 문제 인덱스
-        const satQuizList = ref([]);          // 토요일 복습 대상 단어 리스트
-        const satCorrectCount = ref(0);       // 맞힌 개수
-        const satTotalQuestions = ref(55);    // 총 문항 수 (15+15+25)
-        const satFeedbackMessage = ref('');   // 피드백 메시지
-        const satComboCount = ref(0);         // 연속 정답 콤보
+        const satStage = ref(1);
+        const satWordIndex = ref(0);
+        const satQuizList = ref([]);
+        const satCorrectCount = ref(0);
+        const satTotalQuestions = ref(55);
+        const satFeedbackMessage = ref('');
+        const satComboCount = ref(0);
 
         const wordStats = ref({});
         const isReplayingDay = ref(false);
@@ -58,23 +137,19 @@ createApp({
         const quizText = ref('');
         const isDayCompleted = ref(false);
 
-        // Stage 2 Sub-State
         const quizSubStage = ref(1);
         const quizPart1Count = ref(0);
         const quizPart2Count = ref(0);
         const quizBlanks = ref([]);
 
-        // Sound Blind Hint States
         const soundBlindFailCount = ref(0);
         const hintLevel = ref(0);
 
-        // Stage 3 States
         const stage3Active = ref(false);
         const stage3List = ref([]);
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
 
-        // DOM Refs
         const practiceInput = ref(null);
         const quizInput = ref(null);
         const canvasRef = ref(null);
@@ -107,9 +182,7 @@ createApp({
                 if (savedDateVal) savedDate.value = savedDateVal;
                 if (savedStats) wordStats.value = JSON.parse(savedStats);
 
-                if (typeof loadImagesFromIDB === 'function') {
-                    imageMap.value = await loadImagesFromIDB();
-                }
+                imageMap.value = await safeLoadImagesFromIDB();
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
             }
@@ -145,13 +218,13 @@ createApp({
             if (!file) return;
 
             try {
-                if (typeof JSZip === 'undefined' && file.name.toLowerCase().endsWith('.zip')) {
-                    alert('❌ JSZip 라이브러리가 준비되지 않았습니다. 인터넷 연결을 확인 후 새로고침해 주세요.');
-                    e.target.value = '';
-                    return;
-                }
-
                 if (file.name.toLowerCase().endsWith('.zip')) {
+                    if (typeof JSZip === 'undefined') {
+                        alert('❌ JSZip 라이브러리가 준비되지 않았습니다. 인터넷 연결을 확인 후 새로고침해 주세요.');
+                        e.target.value = '';
+                        return;
+                    }
+
                     const zip = await JSZip.loadAsync(file);
                     const isRealFile = (f) => {
                         const name = f.name;
@@ -190,9 +263,7 @@ createApp({
                         extractedImages[fileNameWithoutExt] = dataUrl;
                     }
 
-                    if (typeof saveImagesToIDB === 'function') {
-                        await saveImagesToIDB(extractedImages);
-                    }
+                    await safeSaveImagesToIDB(extractedImages);
                     imageMap.value = extractedImages;
                     parseAndSaveWords(raw);
 
@@ -202,9 +273,7 @@ createApp({
                         try {
                             let text = event.target.result.replace(/^﻿/, '');
                             const raw = JSON.parse(text);
-                            if (typeof saveImagesToIDB === 'function') {
-                                await saveImagesToIDB({});
-                            }
+                            await safeSaveImagesToIDB({});
                             imageMap.value = {};
                             parseAndSaveWords(raw);
                         } catch (err) {
@@ -242,14 +311,11 @@ createApp({
                     return '';
                 };
 
-                const engWord = getVal(['english', 'word', 'eng', 'vocab', 'target']) || 'No Word';
-
                 return {
                     id: idx + 1,
                     week: parseInt(getVal(['week', 'w'])) || 1,
                     day: getVal(['day', 'd']) || 'Mon',
-                    english: engWord,
-                    word: engWord, // 연동 호환성을 위해 word 키 추가
+                    english: getVal(['english', 'word', 'eng', 'vocab', 'target']) || 'No Word',
                     meaning: getVal(['meaning', 'korean', 'kor', 'trans', 'def', 'mean']) || '뜻 없음',
                     example: getVal(['example', 'examplesentence', 'sentence', 'ex']),
                     exampleMeaning: getVal(['examplemeaning', 'sentencemeaning', 'examplekorean', 'exmeaning']),
@@ -277,16 +343,15 @@ createApp({
         const availableWeeks = computed(() => [...new Set(allWords.value.map(w => w.week))].sort((a, b) => a - b));
         
         const getWords = (week, day) => {
-            if (!Array.isArray(allWords.value)) return [];
             if (day === 'Sat') {
-                return allWords.value.filter(w => String(w.week) === String(week) && w.day !== 'Sat');
+                return allWords.value.filter(w => w.week === week && w.day !== 'Sat');
             }
-            return allWords.value.filter(w => String(w.week) === String(week) && String(w.day).toLowerCase() === String(day).toLowerCase());
+            return allWords.value.filter(w => w.week === week && w.day === day);
         };
         
-        const isLearned = (word) => word && learnedWordIDs.value.includes(word.id);
+        const isLearned = (word) => learnedWordIDs.value.includes(word.id);
         const markAsLearned = (word) => {
-            if (word && !isLearned(word)) learnedWordIDs.value.push(word.id);
+            if (!isLearned(word)) learnedWordIDs.value.push(word.id);
         };
 
         const isWeekCompleted = (week) => {
@@ -345,13 +410,7 @@ createApp({
 
         const currentWordList = computed(() => getWords(currentWeek.value, selectedDay.value));
         const currentWord = computed(() => currentWordList.value[currentIndex.value] || null);
-
-        // [안전 강화] 토요일 복습 전용 현재 단어 (Null 반환 방지)
-        const satCurrentWord = computed(() => {
-            const list = satQuizList.value || [];
-            const index = satWordIndex.value || 0;
-            return list[index] || { id: '', english: '', word: '', meaning: '', example: '', exampleMeaning: '' };
-        });
+        const satCurrentWord = computed(() => satQuizList.value[satWordIndex.value] || null);
         
         const learnedInDayCount = computed(() => currentWordList.value.filter(w => isLearned(w)).length);
         const currentStage3Item = computed(() => stage3List.value[stage3Index.value] || null);
@@ -401,9 +460,7 @@ createApp({
             hintLevel.value = 0;
 
             focusInput();
-            if (!isDayCompleted.value && currentWord.value && typeof speak === 'function') {
-                speak(currentWord.value.english, 0.75);
-            }
+            if (!isDayCompleted.value && currentWord.value) speak(currentWord.value.english, 0.75);
         };
 
         const resetAllProgress = () => {
@@ -469,9 +526,9 @@ createApp({
             if (val.length > 0) {
                 const lastIdx = val.length - 1;
                 if (lastIdx < target.length && val[lastIdx].toLowerCase() === target[lastIdx].toLowerCase()) {
-                    if (typeof playTypingSound === 'function') playTypingSound();
+                    playTypingSound();
                 } else {
-                    if (typeof playErrorSound === 'function') playErrorSound();
+                    playErrorSound();
                 }
             }
         };
@@ -485,12 +542,12 @@ createApp({
                 if (quizSubStage.value === 1) {
                     const lastIdx = val.length - 1;
                     if (lastIdx < target.length && val[lastIdx].toLowerCase() === target[lastIdx].toLowerCase()) {
-                        if (typeof playTypingSound === 'function') playTypingSound();
+                        playTypingSound();
                     } else {
-                        if (typeof playErrorSound === 'function') playErrorSound();
+                        playErrorSound();
                     }
                 } else {
-                    if (typeof playTypingSound === 'function') playTypingSound();
+                    playTypingSound();
                 }
             }
         };
@@ -513,7 +570,7 @@ createApp({
             if (!currentWord.value) return;
             if (practiceText.value.trim().toLowerCase() === currentWord.value.english.toLowerCase()) {
                 recordAttempt(currentWord.value.id, true);
-                if (typeof playCorrectSound === 'function') playCorrectSound();
+                playCorrectSound();
                 practiceCount.value++;
                 practiceText.value = '';
 
@@ -530,7 +587,7 @@ createApp({
                 }
             } else {
                 recordAttempt(currentWord.value.id, false);
-                if (typeof playErrorSound === 'function') playErrorSound();
+                playErrorSound();
                 practiceText.value = '';
             }
         };
@@ -550,7 +607,7 @@ createApp({
 
             if (quizText.value.trim().toLowerCase() === target.toLowerCase()) {
                 recordAttempt(currentWord.value.id, true);
-                if (typeof playCorrectSound === 'function') playCorrectSound();
+                playCorrectSound();
                 quizText.value = '';
 
                 if (quizSubStage.value === 1) {
@@ -560,7 +617,7 @@ createApp({
                         soundBlindFailCount.value = 0;
                         hintLevel.value = 0;
                         focusInput();
-                        if (typeof speak === 'function') speak(currentWord.value.english, 0.75);
+                        speak(currentWord.value.english, 0.75);
                     } else {
                         generateQuizBlanks(quizPart1Count.value + 1);
                         focusInput();
@@ -579,12 +636,12 @@ createApp({
                         moveToNextWordOrStage3();
                     } else {
                         focusInput();
-                        if (typeof speak === 'function') speak(currentWord.value.english, 0.75);
+                        speak(currentWord.value.english, 0.75);
                     }
                 }
             } else {
                 recordAttempt(currentWord.value.id, false);
-                if (typeof playErrorSound === 'function') playErrorSound();
+                playErrorSound();
                 if (quizSubStage.value === 2) soundBlindFailCount.value++;
                 quizText.value = '';
             }
@@ -607,7 +664,7 @@ createApp({
             if (currentIndex.value + 1 < currentWordList.value.length) {
                 currentIndex.value++;
                 focusInput();
-                if (typeof speak === 'function') speak(currentWord.value.english, 0.75);
+                speak(currentWord.value.english, 0.75);
             } else {
                 startStage3();
             }
@@ -668,11 +725,9 @@ createApp({
                         if (typeof initPencilCanvas === 'function') {
                             initPencilCanvas('pencilCanvas');
                         }
-                        if (typeof speak === 'function') speak(currentStage3Item.value.word.english, 0.75);
+                        speak(currentStage3Item.value.word.english, 0.75);
                     } else if (currentStage3Item.value.type === 'example') {
-                        if (typeof speakSequence === 'function') {
-                            speakSequence(currentStage3Item.value.word.english, currentStage3Item.value.word.example);
-                        }
+                        speakSequence(currentStage3Item.value.word.english, currentStage3Item.value.word.example);
                     }
                 }
             });
@@ -694,7 +749,7 @@ createApp({
                     currentWordList.value.forEach(w => markAsLearned(w));
                 }
                 
-                if (typeof playCorrectSound === 'function') playCorrectSound();
+                playCorrectSound();
             }
         };
 
@@ -734,27 +789,27 @@ createApp({
                         return;
                     }
                     stage3AnswerRevealed.value = true;
-                    if (typeof speak === 'function') speak(targetWord, 0.75);
+                    speak(targetWord, 0.75);
                     return;
                 }
 
                 if (result.isCorrect) {
                     recordAttempt(currentStage3Item.value.word.id, true);
-                    if (typeof playCorrectSound === 'function') playCorrectSound();
+                    playCorrectSound();
                     const randomPraise = praiseList[Math.floor(Math.random() * praiseList.length)];
                     alert(randomPraise);
                     nextStage3Question();
                 } else {
                     recordAttempt(currentStage3Item.value.word.id, false);
-                    if (typeof playErrorSound === 'function') playErrorSound();
+                    playErrorSound();
                     stage3AnswerRevealed.value = true;
-                    if (typeof speak === 'function') speak(targetWord, 0.75);
+                    speak(targetWord, 0.75);
                     alert(`아쉬워요! AI가 '${result.recognizedText}'(으)로 읽었어요. 정답을 확인하고 다시 써볼까요? ✨`);
                     clearCanvasStrokesOnly();
                 }
             } else {
                 stage3AnswerRevealed.value = true;
-                if (typeof speak === 'function') speak(targetWord, 0.75);
+                speak(targetWord, 0.75);
             }
         };
 
@@ -783,11 +838,11 @@ createApp({
             if (!currentStage3Item.value) return;
             if (selectedOpt.toLowerCase() === currentStage3Item.value.word.english.toLowerCase()) {
                 recordAttempt(currentStage3Item.value.word.id, true);
-                if (typeof playCorrectSound === 'function') playCorrectSound();
+                playCorrectSound();
                 nextStage3Question();
             } else {
                 recordAttempt(currentStage3Item.value.word.id, false);
-                if (typeof playErrorSound === 'function') playErrorSound();
+                playErrorSound();
             }
         };
 
@@ -819,11 +874,11 @@ createApp({
             }
 
             if (imageMap.value) {
-                const engLower = (word.english || word.word || '').toLowerCase().trim();
+                const engLower = word.english.toLowerCase().trim();
                 if (imageMap.value[engLower]) return imageMap.value[engLower];
             }
 
-            return `https://loremflickr.com/500/400/${encodeURIComponent((word.english || word.word || '').toLowerCase())},illustration,cartoon/all`;
+            return `https://loremflickr.com/500/400/${encodeURIComponent(word.english.toLowerCase())},illustration,cartoon/all`;
         };
 
         const handleImgError = (e) => {
@@ -839,40 +894,48 @@ createApp({
             isReplayingDay.value = true;
         };
 
-        // [방어적 구현] 토요일 약점 단어 필터링
-        const getWeakWords = (count = 15) => {
-            try {
-                const rawWords = Array.isArray(allWords?.value) ? allWords.value : [];
-                const weekVal = currentWeek?.value ?? 1;
-
-                let allWeekdayWords = rawWords.filter(w => {
-                    if (!w) return false;
-                    const isWeekMatch = String(w.week) === String(weekVal);
-                    const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'mon', 'tue', 'wed', 'thu', 'fri', 1, 2, 3, 4, 5].includes(w.day);
-                    return isWeekMatch && isWeekday;
-                });
-
-                if (allWeekdayWords.length === 0) {
-                    allWeekdayWords = rawWords.filter(w => String(w?.week) === String(weekVal));
+        const getWeakWords = (count) => {
+            const dayMap = {
+                'Mon': ['Mon', 'mon', 'MON', 1, '1'],
+                'Tue': ['Tue', 'tue', 'TUE', 2, '2'],
+                'Wed': ['Wed', 'wed', 'WED', 3, '3'],
+                'Thu': ['Thu', 'thu', 'THU', 4, '4'],
+                'Fri': ['Fri', 'fri', 'FRI', 5, '5']
+            };
+        
+            let allWeekdayWords = [];
+            const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        
+            weekdayDays.forEach(d => {
+                let words = getWords(currentWeek.value, d) || [];
+                if (words.length === 0 && allWords.value) {
+                    const validDayValues = dayMap[d];
+                    words = allWords.value.filter(w => {
+                        const isWeekMatch = String(w.week) === String(currentWeek.value);
+                        const isDayMatch = validDayValues.includes(w.day);
+                        return isWeekMatch && isDayMatch;
+                    });
                 }
-
-                if (allWeekdayWords.length === 0) return [];
-
-                const sorted = [...allWeekdayWords].sort((a, b) => {
-                    const idA = a?.id || a?.english || '';
-                    const idB = b?.id || b?.english || '';
-                    const accA = Number(getWordAccuracy(idA)) || 0;
-                    const accB = Number(getWordAccuracy(idB)) || 0;
-                    return accA - accB;
-                });
-
-                return sorted.slice(0, count);
-            } catch (err) {
-                console.error('getWeakWords 처리 오류 예방:', err);
-                return [];
+                allWeekdayWords = allWeekdayWords.concat(words);
+            });
+        
+            if (allWeekdayWords.length === 0 && allWords.value) {
+                allWeekdayWords = allWords.value.filter(w => String(w.week) === String(currentWeek.value));
             }
+        
+            if (allWeekdayWords.length === 0) return [];
+        
+            const sorted = [...allWeekdayWords].sort((a, b) => {
+                const idA = a.id || a.word;
+                const idB = b.id || b.word;
+                const accA = Number(getWordAccuracy(idA)) || 0;
+                const accB = Number(getWordAccuracy(idB)) || 0;
+                return accA - accB;
+            });
+        
+            return sorted.slice(0, count);
         };
-
+        
         const startSaturdayReview = () => {
             isReplayingDay.value = true;
             satStage.value = 1;
@@ -881,7 +944,7 @@ createApp({
             satComboCount.value = 0;
             satQuizList.value = getWeakWords(15);
         };
-
+        
         const getMaskedSpelling20 = (wordStr) => {
             if (!wordStr) return '';
             const len = wordStr.length;
@@ -894,7 +957,7 @@ createApp({
             }
             return chars.join(' ');
         };
-
+        
         const triggerSatFeedback = (isCorrect) => {
             if (isCorrect) {
                 satComboCount.value++;
@@ -917,29 +980,27 @@ createApp({
                 satFeedbackMessage.value = encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)];
             }
         };
-
+        
         const nextSatQuestion = (isCorrect) => {
             triggerSatFeedback(isCorrect);
             if (isCorrect) satCorrectCount.value++;
-
+        
             satWordIndex.value++;
-            const currentListLen = satQuizList.value ? satQuizList.value.length : 0;
-
-            if (satStage.value === 1 && (satWordIndex.value >= currentListLen || satWordIndex.value >= 15)) {
+        
+            if (satStage.value === 1 && satWordIndex.value >= 15) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
                 satQuizList.value = getWeakWords(15);
             } 
-            else if (satStage.value === 2 && (satWordIndex.value >= currentListLen || satWordIndex.value >= 15)) {
+            else if (satStage.value === 2 && satWordIndex.value >= 15) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
-                
-                // [수정] 상위 allWords ref와 변수명이 충돌하지 않도록 weekWords로 변경
-                const rawWords = Array.isArray(allWords?.value) ? allWords.value : [];
-                let weekWords = rawWords.filter(w => String(w?.week) === String(currentWeek.value));
-                satQuizList.value = weekWords.sort(() => Math.random() - 0.5);
+                const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                let allWords = [];
+                weekdayDays.forEach(d => { allWords = allWords.concat(getWords(currentWeek.value, d)); });
+                satQuizList.value = allWords.sort(() => Math.random() - 0.5);
             } 
-            else if (satStage.value === 3 && (satWordIndex.value >= currentListLen || satWordIndex.value >= 25)) {
+            else if (satStage.value === 3 && satWordIndex.value >= 25) {
                 isReplayingDay.value = false;
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
@@ -960,11 +1021,9 @@ createApp({
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
             resetAllProgress, resetWeekProgress, resetDayProgressFromUI, isReplayingDay, restartStage1Only,
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
-            clearPracticeInput, clearQuizInput, getWordImage, handleImgError,
+            clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
-
-            // 토요일 바인딩
             satStage, satWordIndex, satQuizList, satCorrectCount, satTotalQuestions,
             satFeedbackMessage, satComboCount, satCurrentWord,
             getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback, nextSatQuestion
