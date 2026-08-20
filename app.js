@@ -1,4 +1,4 @@
-const { createApp, ref, computed, watch, nextTick, onMounted } = Vue;
+const { createApp, ref, computed, watch, nextTick, onMounted, onUnmounted } = Vue;
 
 createApp({
     setup() {
@@ -93,14 +93,38 @@ createApp({
         const selectedDay = ref('Mon');
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+        // ==================== [ 토요일 복습 커스텀 상태 및 타이머 ] ====================
         const satStage = ref(1);
         const satWordIndex = ref(0);
         const satQuizList = ref([]);
         const satCorrectCount = ref(0);
-        const satTotalQuestions = ref(55);
         const satFeedbackMessage = ref('');
         const satComboCount = ref(0);
-        const satInputText = ref(''); // [버그 수정] 토요일 입력값 변수 추가
+        const satInputText = ref('');
+        const satTimer = ref(5);
+        let satTimerInterval = null;
+
+        const stopSatTimer = () => {
+            if (satTimerInterval) {
+                clearInterval(satTimerInterval);
+                satTimerInterval = null;
+            }
+        };
+
+        const startSatTimer = () => {
+            stopSatTimer();
+            if (satStage.value !== 3) return;
+            satTimer.value = 5;
+            satTimerInterval = setInterval(() => {
+                satTimer.value--;
+                if (satTimer.value <= 0) {
+                    stopSatTimer();
+                    playErrorSound();
+                    satFeedbackMessage.value = '⏰ 제한 시간 초과! 다음 문제로 넘어갑니다.';
+                    nextSatQuestion(false);
+                }
+            }, 1000);
+        };
 
         const wordStats = ref({});
         const isReplayingDay = ref(false);
@@ -195,6 +219,10 @@ createApp({
             });
         });
 
+        onUnmounted(() => {
+            stopSatTimer();
+        });
+
         watch(learnedWordIDs, (newVal) => {
             try {
                 localStorage.setItem('vocab_learned_ids', JSON.stringify(newVal));
@@ -221,7 +249,7 @@ createApp({
             try {
                 if (file.name.toLowerCase().endsWith('.zip')) {
                     if (typeof JSZip === 'undefined') {
-                        alert('❌ JSZip 라이브러리가 준비되지 않았습니다. 인터넷 연결을 확인 후 새로고침해 주세요.');
+                        alert('❌ JSZip 라이브러리가 준비되지 않았습니다. 새로고침 후 시도해 주세요.');
                         e.target.value = '';
                         return;
                     }
@@ -284,7 +312,7 @@ createApp({
                     reader.readAsText(file);
                 }
             } catch (err) {
-                alert(`❌ 파일을 처리하는 중 오류가 발생했습니다.\n\n오류 상세: ${err.message || err}`);
+                alert(`❌ 파일 처리 중 오류: ${err.message || err}`);
             }
             e.target.value = '';
         };
@@ -342,7 +370,7 @@ createApp({
         };
 
         const availableWeeks = computed(() => [...new Set(allWords.value.map(w => Number(w.week) || 1))].sort((a, b) => a - b));
-        
+
         const getWords = (week, day) => {
             const wStr = String(week);
             if (day === 'Sat') {
@@ -361,7 +389,7 @@ createApp({
                 return isWeekMatch && isDayMatch;
             });
         };
-        
+
         const isLearned = (word) => learnedWordIDs.value.includes(word.id);
         const markAsLearned = (word) => {
             if (!isLearned(word)) learnedWordIDs.value.push(word.id);
@@ -397,7 +425,7 @@ createApp({
         };
 
         const overallProgressRate = computed(() => allWords.value.length === 0 ? 0 : learnedWordIDs.value.length / allWords.value.length);
-        
+
         const getWeekProgressRate = (week) => {
             const wStr = String(week);
             const words = allWords.value.filter(w => String(w.week) === wStr);
@@ -427,11 +455,12 @@ createApp({
         const currentWordList = computed(() => getWords(currentWeek.value, selectedDay.value));
         const currentWord = computed(() => currentWordList.value[currentIndex.value] || null);
         const satCurrentWord = computed(() => satQuizList.value[satWordIndex.value] || null);
-        
+
         const learnedInDayCount = computed(() => currentWordList.value.filter(w => isLearned(w)).length);
         const currentStage3Item = computed(() => stage3List.value[stage3Index.value] || null);
 
         const startLesson = (week, day) => {
+            stopSatTimer();
             if (typeof week !== 'number' && typeof week !== 'string') {
                 week = todayLesson.value.week;
                 day = todayLesson.value.day;
@@ -451,6 +480,7 @@ createApp({
         };
 
         const changeDay = (day) => {
+            stopSatTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             selectedDay.value = String(day);
@@ -462,6 +492,7 @@ createApp({
         };
 
         const resetDayProgress = (forceStartOver = false) => {
+            stopSatTimer();
             stage3Active.value = false;
             const firstUnlearnedIdx = currentWordList.value.findIndex(w => !isLearned(w));
 
@@ -499,7 +530,7 @@ createApp({
         };
 
         const resetWeekProgress = (week) => {
-            if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸\n(다른 주차의 진도는 그대로 보존됩니다)`)) {
+            if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸`)) {
                 const wStr = String(week);
                 const weekWordIDs = allWords.value.filter(w => String(w.week) === wStr).map(w => w.id);
                 learnedWordIDs.value = learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
@@ -512,7 +543,7 @@ createApp({
             const d = selectedDay.value;
 
             if (d === 'Sat') {
-                if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸\n(월~금요일 학습 단어는 삭제되지 않고 유지됩니다)`)) {
+                if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸`)) {
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     startSaturdayReview();
                 }
@@ -522,7 +553,7 @@ createApp({
                 const affectedWords = allWords.value.filter(word => String(word.week) === String(w) && affectedDays.includes(word.day));
                 const affectedIDs = affectedWords.map(word => word.id);
 
-                if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸\n(이전 요일 및 다른 주차의 진도는 안전하게 보존됩니다)`)) {
+                if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸`)) {
                     learnedWordIDs.value = learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     resetDayProgress(true);
@@ -881,6 +912,7 @@ createApp({
         };
 
         const advanceToNextDay = () => {
+            stopSatTimer();
             const targetIdx = days.indexOf(selectedDay.value);
             if (targetIdx < days.length - 1) {
                 changeDay(days[targetIdx + 1]);
@@ -919,6 +951,7 @@ createApp({
         };
 
         const restartStage1Only = () => {
+            stopSatTimer();
             currentIndex.value = 0;
             currentMode.value = 'practice';
             practiceCount.value = 0;
@@ -947,7 +980,9 @@ createApp({
             return sorted.slice(0, count);
         };
         
+        // ==================== [ 개선된 토요일 주말 복습 로직 ] ====================
         const startSaturdayReview = () => {
+            stopSatTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             stage3Active.value = false;
@@ -956,18 +991,30 @@ createApp({
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
-            satInputText.value = ''; // [버그 수정] 초기화 추가
+            satInputText.value = '';
             satQuizList.value = getWeakWords(15);
 
             if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
 
-            if (satQuizList.value.length > 0 && satQuizList.value[0]) {
-                speak(satQuizList.value[0].english, 0.75);
+            if (satCurrentWord.value) {
+                speak(satCurrentWord.value.english, 0.75);
             }
         };
-        
+
+        const satStageTitle = computed(() => {
+            if (satStage.value === 1) return '🎯 1단계: 취약 단어 집중 공략 (힌트 제공)';
+            if (satStage.value === 2) return '⚡ 2단계: 블라인드 사운드 리콜 (사운드 집중)';
+            return '🔥 3단계: 5초 스피드 타임어택 (스피드 게임)';
+        });
+
+        const satStageThemeClass = computed(() => {
+            if (satStage.value === 1) return 'bg-pink-500 text-white';
+            if (satStage.value === 2) return 'bg-indigo-600 text-white';
+            return 'bg-rose-600 text-white animate-pulse';
+        });
+
         const getMaskedSpelling20 = (wordStr) => {
             if (!wordStr) return '';
             const len = wordStr.length;
@@ -980,47 +1027,51 @@ createApp({
             }
             return chars.join(' ');
         };
-        
+
         const triggerSatFeedback = (isCorrect) => {
             if (isCorrect) {
                 satComboCount.value++;
                 const positiveMsgs = [
-                    '✨ 완벽해요! 기억력이 대단해요!',
-                    '🔥 연속 정답! 이대로 쭉 가볼까요?',
-                    '🌸 주말 복습도 척척 해내고 있어요!',
-                    '💖 대단해요! 완벽하게 외웠네요!'
+                    '✨ 완벽해요! 완벽하게 기억하셨네요!',
+                    '🔥 훌륭해요! 거침없는 정답 행진!',
+                    '🌸 대단합니다! 실력이 대폭 상승 중!',
+                    '💖 정답! 이 기세로 완벽 마감해봅시다!'
                 ];
                 satFeedbackMessage.value = satComboCount.value >= 3 
-                    ? `🔥 ${satComboCount.value}연속 정답! 대단해요!` 
+                    ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
                     : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
             } else {
                 satComboCount.value = 0;
                 const encourageMsgs = [
-                    '💪 괜찮아요! 다음 문제에서 맞히면 돼요!',
-                    '🌱 아깝네요! 다시 한번 소리를 떠올려봐요.',
-                    '✨ 정답을 확인하고 다음엔 꼭 맞춰봐요!'
+                    '💪 괜찮아요! 다음 문제에서 맞히면 됩니다!',
+                    '🌱 소리를 다시 떠올리고 집중해볼까요?',
+                    '✨ 정답을 확인하고 기억에 각인시켜봐요!'
                 ];
                 satFeedbackMessage.value = encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)];
             }
         };
-        
+
         const nextSatQuestion = (isCorrect) => {
+            stopSatTimer();
             triggerSatFeedback(isCorrect);
             if (isCorrect) satCorrectCount.value++;
-        
+
             satWordIndex.value++;
-            satInputText.value = ''; // [버그 수정] 입력창 초기화
-        
+            satInputText.value = '';
+
+            // 1단계 -> 2단계 전환
             if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
                 satQuizList.value = getWeakWords(15);
             } 
+            // 2단계 -> 3단계 전환 (3단계 진입시 스피드 게임 시작)
             else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
             } 
+            // 3단계 완료
             else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
                 isReplayingDay.value = false;
                 isDayCompleted.value = true;
@@ -1033,12 +1084,15 @@ createApp({
 
             if (satCurrentWord.value) {
                 speak(satCurrentWord.value.english, 0.75);
+                if (satStage.value === 3) {
+                    startSatTimer();
+                }
             }
         };
 
-        // [버그 수정] 토요일 정답 제출 함수 추가
         const submitSatAnswer = () => {
             if (!satCurrentWord.value) return;
+            stopSatTimer();
             const target = satCurrentWord.value.english.trim().toLowerCase();
             const input = satInputText.value.trim().toLowerCase();
 
@@ -1070,9 +1124,9 @@ createApp({
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
-            satStage, satWordIndex, satQuizList, satCorrectCount, satTotalQuestions,
-            satFeedbackMessage, satComboCount, satCurrentWord, satInputText, submitSatAnswer, // [버그 수정] 추가 반환
-            getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback, nextSatQuestion
+            satStage, satWordIndex, satQuizList, satCorrectCount, satFeedbackMessage, satComboCount, satCurrentWord,
+            satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback,
+            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass
         };
     }
 }).mount('#app');
