@@ -990,6 +990,32 @@ createApp({
 
             return sorted.slice(0, count);
         };
+
+        // [Base State 영역]
+        const satHintText = ref(''); // 1단계 힌트 저장용 Ref
+        
+        // [1단계 힌트 생성 함수]
+        const generateSatHint = (wordStr) => {
+            if (!wordStr) return '';
+            const len = wordStr.length;
+            
+            // 30% ~ 50% 범위의 랜덤 비율 적용 (최소 1개 이상 가림)
+            const ratio = 0.3 + Math.random() * 0.2; // 0.30 ~ 0.50
+            const hideCount = Math.max(1, Math.round(len * ratio));
+        
+            // 중복 없는 랜덤 인덱스 선택
+            const hideIndices = new Set();
+            while (hideIndices.size < hideCount) {
+                const randIdx = Math.floor(Math.random() * len);
+                hideIndices.add(randIdx);
+            }
+        
+            // 가려진 글자는 '_'로 표시
+            return wordStr
+                .split('')
+                .map((char, idx) => (hideIndices.has(idx) ? '_' : char))
+                .join(' ');
+        };
         
         // ==================== [ 토요일 주말 복습 로직 ] ====================
         const startSaturdayReview = () => {
@@ -1006,14 +1032,15 @@ createApp({
             feedbackMessage.value = '';
             isFeedbackCorrect.value = true;
             satQuizList.value = getWeakWords(15);
-
+           
             if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
 
             focusInput(); // 진입 즉시 입력창 커서 이동
 
-            if (satCurrentWord.value) {
+           if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english); // 힌트 생성
                 speak(satCurrentWord.value.english, 0.75);
             }
         };
@@ -1078,6 +1105,7 @@ createApp({
             focusInput(); // 다음 문제 전환 시 포커스 유지
             
             if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english); // 힌트 생성
                 speak(satCurrentWord.value.english, 0.75);
                 if (satStage.value === 3) {
                     startSatTimer();
@@ -1146,7 +1174,7 @@ createApp({
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
-            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions
+            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText
         };
     }
 }).mount('#app');
