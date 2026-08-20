@@ -160,7 +160,36 @@
                     {{ day === 'Sat' ? '토' : day }}
                 </button>
             </div>
+            
+            <!-- 👇 [여기 삽입] 토요일 전용 진행 헤더 및 실시간 격려 피드백 (08.20.) -->
+            <div v-if="selectedDay === 'Sat' && !isDayCompleted" class="flex-shrink-0 space-y-1.5">
+                <!-- 토요일 학습 전용 헤더 -->
+                <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 text-white p-3 rounded-2xl shadow-md flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">👑</span>
+                        <div>
+                            <h3 class="font-black text-sm tracking-wide">토요일 주말 종합 챌린지! ✨</h3>
+                            <p class="text-[11px] text-pink-100 font-semibold">
+                                {{ satStage }}단계 : {{ satStage === 1 ? '스펠링 힌트 테스트 (15문항)' : (satStage === 2 ? '소리 & 뜻 인출 테스트 (15문항)' : '🚀 스피드 퀴즈 (25문항)') }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs bg-white/20 font-black px-2.5 py-1 rounded-full border border-white/30">
+                            {{ satWordIndex + 1 }} / {{ satStage === 3 ? 25 : 15 }}
+                        </span>
+                    </div>
+                </div>
 
+                <!-- 실시간 피드백/격려 토스트 메시지 -->
+                <transition name="fade">
+                    <div v-if="satFeedbackMessage" class="bg-purple-900/90 text-yellow-300 font-extrabold text-xs px-4 py-2 rounded-xl text-center shadow-lg border border-yellow-300/40 animate-bounce">
+                        {{ satFeedbackMessage }}
+                    </div>
+                </transition>
+            </div>
+            <!-- 👆 [여기까지 삽입] -->
+            
             <!-- Daily Review Screen (All Stages Cleared) -->
             <!-- 기존: v-if="isDayCompleted && !stage3Active" -->
             <!-- 변경: !isReplayingDay 추가 -->
@@ -179,7 +208,33 @@
                         🔄 초기화
                     </button>
                 </div>
-            
+
+                <!-- 👇 [여기 삽입] 토요일 완주 점수 및 80% 기준 성취/재도전 결과 카드 (8.20.) -->
+                <div v-if="selectedDay === 'Sat'" class="text-center space-y-2 p-3.5 bg-gradient-to-b from-purple-50 to-pink-50 rounded-2xl border-2 border-pink-200 flex-shrink-0">
+                    <div class="text-2xl font-black text-purple-900">
+                        최종 점수: <span class="text-pink-600">{{ Math.round((satCorrectCount / satTotalQuestions) * 100) }}점</span>
+                        <span class="text-xs text-purple-500 font-bold ml-1">({{ satCorrectCount }} / {{ satTotalQuestions }} 문제 맞힘)</span>
+                    </div>
+
+                    <!-- 80% 이상 통과 시 -->
+                    <div v-if="(satCorrectCount / satTotalQuestions) >= 0.8" class="space-y-0.5">
+                        <div class="text-xl">🎉 👑 🏅</div>
+                        <h3 class="text-base font-black text-purple-900">주말 챌린지 완벽 성공!</h3>
+                        <p class="text-xs font-bold text-pink-500">한 주 동안 배운 25개 단어를 멋지게 마스터했어요! ✨</p>
+                    </div>
+
+                    <!-- 80% 미만 재도전 유도 시 -->
+                    <div v-else class="space-y-0.5">
+                        <div class="text-xl">💪 🌸 🌱</div>
+                        <h3 class="text-base font-black text-purple-800">아쉬워요! 조금만 더 하면 돼요!</h3>
+                        <p class="text-xs font-bold text-purple-600 leading-relaxed">
+                            목표 80점까지 딱 <span class="text-pink-600 font-black">{{ Math.ceil(satTotalQuestions * 0.8) - satCorrectCount }}문제</span> 남았어요.<br>
+                            아래 단어 결과를 확인하고 다시 한번 도전해 볼까요?
+                        </p>
+                    </div>
+                </div>
+                <!-- 👆 [여기까지 삽입] -->
+                
                 <!-- 2열 단어 리스트 -->
                 <div class="flex-1 overflow-y-auto pr-1">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
