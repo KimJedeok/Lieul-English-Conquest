@@ -849,18 +849,50 @@ createApp({
         const satFeedbackMessage = ref('');
         const satComboCount = ref(0); // 연속 정답 콤보
         
-        // 1~5일차 단어 중 정답률 낮은 순으로 추출하는 함수
-        // [기존 getWeakWords ~ nextSatQuestion 구간을 이 코드로 대체]
+        // 1~5일차 단어 추출 (타입/대소문자 유연성 강화 버전)
         const getWeakWords = (count) => {
-            const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+            // 요일 매핑 테이블 (대소문자 및 숫자 대응)
+            const dayMap = {
+                'Mon': ['Mon', 'mon', 'MON', 1, '1'],
+                'Tue': ['Tue', 'tue', 'TUE', 2, '2'],
+                'Wed': ['Wed', 'wed', 'WED', 3, '3'],
+                'Thu': ['Thu', 'thu', 'THU', 4, '4'],
+                'Fri': ['Fri', 'fri', 'FRI', 5, '5']
+            };
+        
             let allWeekdayWords = [];
+            const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        
             weekdayDays.forEach(d => {
-                allWeekdayWords = allWeekdayWords.concat(getWords(currentWeek.value, d));
+                // 기존 getWords로 먼저 시도
+                let words = getWords(currentWeek.value, d) || [];
+        
+                // 만약 getWords가 단어를 못 가져왔다면 allWords에서 직접 넓은 조건으로 검색
+                if (words.length === 0 && allWords.value) {
+                    const validDayValues = dayMap[d];
+                    words = allWords.value.filter(w => {
+                        const isWeekMatch = String(w.week) === String(currentWeek.value);
+                        const isDayMatch = validDayValues.includes(w.day);
+                        return isWeekMatch && isDayMatch;
+                    });
+                }
+        
+                allWeekdayWords = allWeekdayWords.concat(words);
             });
         
+            // 1~5일차 단어가 아예 없는 경우 최후의 수단: 전체 단어 중 주차에 맞는 단어 가져오기
+            if (allWeekdayWords.length === 0 && allWords.value) {
+                allWeekdayWords = allWords.value.filter(w => String(w.week) === String(currentWeek.value));
+            }
+        
+            if (allWeekdayWords.length === 0) return [];
+        
+            // 정답률 낮은 순 정렬 (id가 없어도 오류 안 나게 처리)
             const sorted = [...allWeekdayWords].sort((a, b) => {
-                const accA = getWordAccuracy(a.id) ?? -1;
-                const accB = getWordAccuracy(b.id) ?? -1;
+                const idA = a.id || a.word;
+                const idB = b.id || b.word;
+                const accA = Number(getWordAccuracy(idA)) || 0;
+                const accB = Number(getWordAccuracy(idB)) || 0;
                 return accA - accB;
             });
         
