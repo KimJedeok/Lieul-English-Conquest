@@ -184,6 +184,7 @@ createApp({
 
         const practiceInput = ref(null);
         const quizInput = ref(null);
+        const satInput = ref(null); // 토요일 입력창 Ref 추가
         const canvasRef = ref(null);
         const fileInput = ref(null);
 
@@ -568,9 +569,12 @@ createApp({
             }
         };
 
+        // [focusInput 함수 수정]
         const focusInput = () => {
             nextTick(() => {
-                if (currentMode.value === 'practice' && practiceInput.value) {
+                if (selectedDay.value === 'Sat') {
+                    if (satInput.value) satInput.value.focus();
+                } else if (currentMode.value === 'practice' && practiceInput.value) {
                     practiceInput.value.focus();
                 } else if (currentMode.value === 'quiz' && quizInput.value) {
                     quizInput.value.focus();
@@ -1007,6 +1011,8 @@ createApp({
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
 
+            focusInput(); // 진입 즉시 입력창 커서 이동
+
             if (satCurrentWord.value) {
                 speak(satCurrentWord.value.english, 0.75);
             }
@@ -1069,6 +1075,8 @@ createApp({
                 return;
             }
 
+            focusInput(); // 다음 문제 전환 시 포커스 유지
+            
             if (satCurrentWord.value) {
                 speak(satCurrentWord.value.english, 0.75);
                 if (satStage.value === 3) {
@@ -1080,7 +1088,13 @@ createApp({
         // 토요일 주말 챌린지 정답 제출 함수
         const submitSatAnswer = () => {
             if (feedbackMessage.value) return; 
-            if (!satInputText.value || !satInputText.value.trim()) return;
+            
+            // 입력창이 비어있는 경우 제출 중단 및 포커스 유지
+            if (!satInputText.value || !satInputText.value.trim()) {
+                focusInput();
+                return;
+            }
+            
             if (!satCurrentWord.value) return;
 
             const userInput = satInputText.value.trim().toLowerCase();
@@ -1120,7 +1134,7 @@ createApp({
             currentIndex, currentMode, practiceText, practiceCount, quizText, isDayCompleted,
             quizSubStage, quizPart1Count, quizPart2Count, quizBlanks, soundBlindFailCount, hintLevel,
             stage3Active, stage3List, stage3Index, stage3AnswerRevealed, currentStage3Item,
-            practiceInput, quizInput, canvasRef, fileInput, showConfirmModal,
+            practiceInput, quizInput, satInput, canvasRef, fileInput, showConfirmModal,
             openConfirmModal, confirmLoadFile, cancelLoadFile, handleFileUpload,
             availableWeeks, getWords, isLearned, isWeekUnlocked, isWeekCompleted,
             isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
