@@ -816,6 +816,115 @@ createApp({
             isReplayingDay.value = true; // 재시험 모드 ON (완주 화면 숨김)
             // 날짜를 변경하거나(changeDay, startLesson), 홈으로 갈 때 isReplayingDay.value = false 로 리셋해주면 좋습니다.
         };
+
+        // ==========================================
+        // 토요일 주말 종합 복습 전용 상태 변수 (8.20.)
+        // ==========================================
+        const satStage = ref(1); // 1: 힌트 테스트(15문항), 2: 음성/뜻 테스트(15문항), 3: 스피드 퀴즈(25문항)
+        const satWordIndex = ref(0);
+        const satQuizList = ref([]);
+        const satCorrectCount = ref(0);
+        const satTotalQuestions = ref(55); // 총 15 + 15 + 25 = 55문항
+        const satFeedbackMessage = ref('');
+        const satComboCount = ref(0); // 연속 정답 콤보
+        
+        // 1~5일차 단어 중 정답률 낮은 순으로 추출하는 함수
+        const getWeakWords = (count) => {
+            // 월~금 단어 수집
+            const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+            let allWeekdayWords = [];
+            weekdayDays.forEach(d => {
+                allWeekdayWords = allWeekdayWords.concat(getWords(currentWeek.value, d));
+            });
+        
+            // 정답률 낮은 순 정렬 (미학습/오답 우선)
+            const sorted = [...allWeekdayWords].sort((a, b) => {
+                const accA = getWordAccuracy(a.id) ?? -1;
+                const accB = getWordAccuracy(b.id) ?? -1;
+                return accA - accB;
+            });
+        
+            return sorted.slice(0, count);
+        };
+        
+        // 토요일 복습 시작
+        const startSaturdayReview = () => {
+            isReplayingDay.value = true;
+            satStage.value = 1;
+            satWordIndex.value = 0;
+            satCorrectCount.value = 0;
+            satComboCount.value = 0;
+            
+            // 1단계: 정답률 낮은 15개 선별
+            satQuizList.value = getWeakWords(15);
+        };
+        
+        // 20~30% 가림글자 생성 (1단계 전용)
+        const getMaskedSpelling20 = (wordStr) => {
+            const len = wordStr.length;
+            const hideCount = Math.max(1, Math.round(len * 0.25)); // 약 25% 가림
+            const chars = wordStr.split('');
+            
+            // 뒤쪽이나 중간 글자 위주로 가리기
+            for (let i = 0; i < hideCount; i++) {
+                const targetIdx = Math.floor(len / 2) + i;
+                if (targetIdx < len) chars[targetIdx] = '?';
+            }
+            return chars.join(' ');
+        };
+        
+        // 피드백 메시지 생성 (연속 정답/오답)
+        const triggerSatFeedback = (isCorrect) => {
+            if (isCorrect) {
+                satComboCount.value++;
+                const positiveMsgs = [
+                    '✨ 완벽해요! 기억력이 대단해요!',
+                    '🔥 연속 정답! 이대로 쭉 가볼까요?',
+                    '🌸 주말 복습도 척척 해내고 있어요!',
+                    '💖 대단해요! 완벽하게 외웠네요!'
+                ];
+                satFeedbackMessage.value = satComboCount.value >= 3 
+                    ? `🔥 ${satComboCount.value}연속 정답! 대단해요!` 
+                    : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
+            } else {
+                satComboCount.value = 0;
+                const encourageMsgs = [
+                    '💪 괜찮아요! 다음 문제에서 맞히면 돼요!',
+                    '🌱 아깝네요! 다시 한번 소리를 떠올려봐요.',
+                    '✨ 정답을 확인하고 다음엔 꼭 맞춰봐요!'
+                ];
+                satFeedbackMessage.value = encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)];
+            }
+        };
+        
+        // 단계 전환 로직
+        const nextSatQuestion = (isCorrect) => {
+            triggerSatFeedback(isCorrect);
+            if (isCorrect) satCorrectCount.value++;
+        
+            satWordIndex.value++;
+        
+            // 1단계 종료 -> 2단계 진입
+            if (satStage.value === 1 && satWordIndex.value >= 15) {
+                satStage.value = 2;
+                satWordIndex.value = 0;
+                satQuizList.value = getWeakWords(15); // 2단계 15개
+            } 
+            // 2단계 종료 -> 3단계 진입
+            else if (satStage.value === 2 && satWordIndex.value >= 15) {
+                satStage.value = 3;
+                satWordIndex.value = 0;
+                // 3단계: 전체 25개 단어 셔플
+                const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                let allWords = [];
+                weekdayDays.forEach(d => { allWords = allWords.concat(getWords(currentWeek.value, d)); });
+                satQuizList.value = allWords.sort(() => Math.random() - 0.5);
+            } 
+            // 3단계 종료 -> 최종 결과
+            else if (satStage.value === 3 && satWordIndex.value >= 25) {
+                isReplayingDay.value = false; // 완주 결과 화면으로 이동
+            }
+        };
         
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
