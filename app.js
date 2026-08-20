@@ -100,6 +100,7 @@ createApp({
         const satTotalQuestions = ref(55);
         const satFeedbackMessage = ref('');
         const satComboCount = ref(0);
+        const satInputText = ref(''); // [버그 수정] 토요일 입력값 변수 추가
 
         const wordStats = ref({});
         const isReplayingDay = ref(false);
@@ -955,6 +956,7 @@ createApp({
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
+            satInputText.value = ''; // [버그 수정] 초기화 추가
             satQuizList.value = getWeakWords(15);
 
             if (satQuizList.value.length === 0) {
@@ -1007,6 +1009,7 @@ createApp({
             if (isCorrect) satCorrectCount.value++;
         
             satWordIndex.value++;
+            satInputText.value = ''; // [버그 수정] 입력창 초기화
         
             if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 2;
@@ -1033,6 +1036,24 @@ createApp({
             }
         };
 
+        // [버그 수정] 토요일 정답 제출 함수 추가
+        const submitSatAnswer = () => {
+            if (!satCurrentWord.value) return;
+            const target = satCurrentWord.value.english.trim().toLowerCase();
+            const input = satInputText.value.trim().toLowerCase();
+
+            const isCorrect = (input === target);
+            recordAttempt(satCurrentWord.value.id, isCorrect);
+
+            if (isCorrect) {
+                playCorrectSound();
+            } else {
+                playErrorSound();
+            }
+
+            nextSatQuestion(isCorrect);
+        };
+
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
@@ -1050,7 +1071,7 @@ createApp({
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, satTotalQuestions,
-            satFeedbackMessage, satComboCount, satCurrentWord,
+            satFeedbackMessage, satComboCount, satCurrentWord, satInputText, submitSatAnswer, // [버그 수정] 추가 반환
             getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback, nextSatQuestion
         };
     }
