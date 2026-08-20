@@ -310,7 +310,8 @@
 
                     <!-- 정답 입력 양식 -->
                     <div class="max-w-xs mx-auto w-full space-y-2">
-                        <input v-model="satInputText"
+                        <input ref="satInput"
+                               v-model="satInputText"
                                @keyup.enter="submitSatAnswer"
                                type="text"
                                autocapitalize="off"
