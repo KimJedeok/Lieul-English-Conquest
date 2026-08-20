@@ -1043,7 +1043,7 @@ createApp({
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
-            getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
+            getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, satTotalQuestions,
             satFeedbackMessage, satComboCount, satCurrentWord,
             getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback, nextSatQuestion
