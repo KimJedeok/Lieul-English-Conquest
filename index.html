@@ -145,7 +145,6 @@
                 </button>
 
                 <div class="flex items-center gap-2">
-                    <!-- ⏱️ [추가] 글로벌 타이머 표시 영역 -->
                     <div v-if="timerDisplay" class="bg-rose-500 text-white font-black px-3 py-1 rounded-full text-xs shadow animate-pulse flex items-center gap-1">
                         ⏱️ {{ timerDisplay }}
                     </div>
@@ -159,8 +158,8 @@
                 </div>
             </div>
 
-            <!-- Day Selector Tabs -->
-            <div class="grid grid-cols-6 gap-1 flex-shrink-0">
+            <!-- Day Selector Tabs (평일 월~금 전용) -->
+            <div v-if="selectedDay !== 'Sat'" class="grid grid-cols-6 gap-1 flex-shrink-0">
                 <button v-for="day in days" :key="day"
                         @click="changeDay(day)"
                         :disabled="!isDayUnlocked(currentWeek, day)"
@@ -170,8 +169,8 @@
                 </button>
             </div>
 
-            <!-- 📢 [추가] 큼직한 실시간 피드백 영역 (공통 노출) -->
-            <div v-if="feedbackMessage" 
+            <!-- 📢 공통 실시간 피드백 영역 (평일용) -->
+            <div v-if="feedbackMessage && selectedDay !== 'Sat'" 
                  :class="[
                      'p-3.5 rounded-2xl text-center font-black text-base shadow-md border-2 transition-all duration-300 animate-bounce flex-shrink-0 flex items-center justify-center gap-2',
                      isFeedbackCorrect ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-rose-100 border-rose-400 text-rose-800'
@@ -282,6 +281,16 @@
                             {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
                         </span>
                     </div>
+                </div>
+
+                <!-- 📢 토요일 전용 큼직한 실시간 피드백 영역 -->
+                <div v-if="feedbackMessage" 
+                     :class="[
+                         'p-3 rounded-2xl text-center font-black text-sm md:text-base shadow-md border-2 transition-all duration-300 animate-bounce flex-shrink-0 flex items-center justify-center gap-2',
+                         isFeedbackCorrect ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-rose-100 border-rose-400 text-rose-800'
+                     ]">
+                    <span class="text-xl md:text-2xl">{{ isFeedbackCorrect ? '🎉' : '❌' }}</span>
+                    <span>{{ feedbackMessage }}</span>
                 </div>
 
                 <!-- 토요일 문제 카드 -->
