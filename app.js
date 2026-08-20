@@ -1090,23 +1090,36 @@ createApp({
             }
         };
 
-        const submitSatAnswer = () => {
-            if (!satCurrentWord.value) return;
-            stopSatTimer();
-            const target = satCurrentWord.value.english.trim().toLowerCase();
-            const input = satInputText.value.trim().toLowerCase();
-
-            const isCorrect = (input === target);
-            recordAttempt(satCurrentWord.value.id, isCorrect);
-
+        // 토요일 주말 챌린지 정답 제출 함수
+        submitSatAnswer() {
+            // 피드백 표시 중 중복 제출 방지
+            if (this.feedbackMessage) return; 
+            if (!this.satInputText || !this.satInputText.trim()) return;
+        
+            const userInput = this.satInputText.trim().toLowerCase();
+            const targetWord = this.satCurrentWord.english.toLowerCase();
+            const isCorrect = (userInput === targetWord);
+        
+            // 피드백 상태 반영 및 음성 재생
+            this.isFeedbackCorrect = isCorrect;
             if (isCorrect) {
-                playCorrectSound();
+                this.satCorrectCount++;
+                this.feedbackMessage = "정답입니다! 👏✨";
+                if (typeof playCorrectSound === 'function') playCorrectSound();
             } else {
-                playErrorSound();
+                this.feedbackMessage = `아쉽네요! 정답은 '${this.satCurrentWord.english}' 입니다. 😢`;
+                if (typeof playWrongSound === 'function') playWrongSound();
             }
-
-            nextSatQuestion(isCorrect);
-        };
+        
+            // 입력창 초기화
+            this.satInputText = '';
+        
+            // 1.5초 동안 피드백을 보여준 후 다음 문제로 이동
+            setTimeout(() => {
+                this.feedbackMessage = '';
+                this.nextSatQuestion();
+            }, 1500);
+        }
 
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
