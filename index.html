@@ -144,8 +144,14 @@
                     🏠 홈으로
                 </button>
 
-                <div class="font-extrabold text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs flex items-center gap-1">
-                    🎀 {{ currentWeek }}주차 ({{ selectedDay === 'Sat' ? '토요일 복습' : selectedDay }})
+                <div class="flex items-center gap-2">
+                    <!-- ⏱️ [추가] 글로벌 타이머 표시 영역 -->
+                    <div v-if="timerDisplay" class="bg-rose-500 text-white font-black px-3 py-1 rounded-full text-xs shadow animate-pulse flex items-center gap-1">
+                        ⏱️ {{ timerDisplay }}
+                    </div>
+                    <div class="font-extrabold text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs flex items-center gap-1">
+                        🎀 {{ currentWeek }}주차 ({{ selectedDay === 'Sat' ? '토요일 복습' : selectedDay }})
+                    </div>
                 </div>
 
                 <div class="text-xs font-extrabold text-pink-400">
@@ -162,6 +168,16 @@
                         :class="selectedDay === day ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-sm' : (isDayUnlocked(currentWeek, day) ? 'bg-white text-purple-700 border border-purple-100' : 'bg-slate-100 text-slate-300')">
                     {{ day === 'Sat' ? '토' : day }}
                 </button>
+            </div>
+
+            <!-- 📢 [추가] 큼직한 실시간 피드백 영역 (공통 노출) -->
+            <div v-if="feedbackMessage" 
+                 :class="[
+                     'p-3.5 rounded-2xl text-center font-black text-base shadow-md border-2 transition-all duration-300 animate-bounce flex-shrink-0 flex items-center justify-center gap-2',
+                     isFeedbackCorrect ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-rose-100 border-rose-400 text-rose-800'
+                 ]">
+                <span class="text-2xl">{{ isFeedbackCorrect ? '🎉' : '❌' }}</span>
+                <span>{{ feedbackMessage }}</span>
             </div>
 
             <!-- ---------------------------------------------------- -->
@@ -266,11 +282,6 @@
                             {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
                         </span>
                     </div>
-                </div>
-
-                <!-- 실시간 피드백 연출 토스트 -->
-                <div v-if="satFeedbackMessage" class="bg-purple-900/90 text-yellow-300 font-extrabold text-xs px-4 py-2 rounded-xl text-center shadow-lg border border-yellow-300/40 animate-bounce flex-shrink-0">
-                    {{ satFeedbackMessage }}
                 </div>
 
                 <!-- 토요일 문제 카드 -->
@@ -623,6 +634,6 @@
     <!-- 모듈 스크립트 연결 -->
     <script src="db.js"></script>
     <script src="audio.js"></script>
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.1"></script>
 </body>
 </html>
