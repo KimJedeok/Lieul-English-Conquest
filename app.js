@@ -13,6 +13,16 @@ createApp({
         const selectedDay = ref('Mon');
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+        // 👇 [추가/이동] 토요일 주말 종합 복습 전용 상태값 (8.20.)
+        const satStage = ref(1);             // 1: 힌트, 2: 음성/뜻, 3: 스피드
+        const satWordIndex = ref(0);         // 현재 출제 문제 인덱스
+        const satQuizList = ref([]);          // 토요일 복습 대상 단어 리스트
+        const satCorrectCount = ref(0);       // 맞힌 개수
+        const satTotalQuestions = ref(55);    // 총 문항 수 (15+15+25)
+        const satFeedbackMessage = ref('');   // 피드백 메시지
+        const satComboCount = ref(0);         // 연속 정답 콤보
+        // 여기까지 삽입
+
         const wordStats = ref({});
         const isReplayingDay = ref(false);
 
@@ -328,6 +338,11 @@ createApp({
 
         const currentWordList = computed(() => getWords(currentWeek.value, selectedDay.value));
         const currentWord = computed(() => currentWordList.value[currentIndex.value] || null);
+
+        // 👇 [신규 추가] 토요일 복습 전용 현재 단어 계산 속성(8.20.)
+        const satCurrentWord = computed(() => satQuizList.value[satWordIndex.value] || null);
+        // 여기까지
+        
         const learnedInDayCount = computed(() => currentWordList.value.filter(w => isLearned(w)).length);
 
         const currentStage3Item = computed(() => stage3List.value[stage3Index.value] || null);
@@ -336,7 +351,13 @@ createApp({
             currentWeek.value = week;
             selectedDay.value = day;
             activeScreen.value = 'learning';
-            resetDayProgress();
+            
+            // 👇 [수정] 토요일 클릭 시 주말 복습 로직 실행, 그 외 일반 학습 실행 (8.20.)
+            if (day === 'Sat') {
+                startSaturdayReview();
+            } else {
+                resetDayProgress(); // 본래 있었던 코드
+            }
         };
 
         const changeDay = (day) => {
@@ -829,15 +850,14 @@ createApp({
         const satComboCount = ref(0); // 연속 정답 콤보
         
         // 1~5일차 단어 중 정답률 낮은 순으로 추출하는 함수
+        // [기존 getWeakWords ~ nextSatQuestion 구간을 이 코드로 대체]
         const getWeakWords = (count) => {
-            // 월~금 단어 수집
             const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
             let allWeekdayWords = [];
             weekdayDays.forEach(d => {
                 allWeekdayWords = allWeekdayWords.concat(getWords(currentWeek.value, d));
             });
         
-            // 정답률 낮은 순 정렬 (미학습/오답 우선)
             const sorted = [...allWeekdayWords].sort((a, b) => {
                 const accA = getWordAccuracy(a.id) ?? -1;
                 const accB = getWordAccuracy(b.id) ?? -1;
@@ -847,25 +867,21 @@ createApp({
             return sorted.slice(0, count);
         };
         
-        // 토요일 복습 시작
         const startSaturdayReview = () => {
             isReplayingDay.value = true;
             satStage.value = 1;
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
-            
-            // 1단계: 정답률 낮은 15개 선별
             satQuizList.value = getWeakWords(15);
         };
         
-        // 20~30% 가림글자 생성 (1단계 전용)
         const getMaskedSpelling20 = (wordStr) => {
+            if (!wordStr) return '';
             const len = wordStr.length;
-            const hideCount = Math.max(1, Math.round(len * 0.25)); // 약 25% 가림
+            const hideCount = Math.max(1, Math.round(len * 0.25));
             const chars = wordStr.split('');
             
-            // 뒤쪽이나 중간 글자 위주로 가리기
             for (let i = 0; i < hideCount; i++) {
                 const targetIdx = Math.floor(len / 2) + i;
                 if (targetIdx < len) chars[targetIdx] = '?';
@@ -873,7 +889,6 @@ createApp({
             return chars.join(' ');
         };
         
-        // 피드백 메시지 생성 (연속 정답/오답)
         const triggerSatFeedback = (isCorrect) => {
             if (isCorrect) {
                 satComboCount.value++;
@@ -897,35 +912,34 @@ createApp({
             }
         };
         
-        // 단계 전환 로직
         const nextSatQuestion = (isCorrect) => {
             triggerSatFeedback(isCorrect);
             if (isCorrect) satCorrectCount.value++;
         
             satWordIndex.value++;
         
-            // 1단계 종료 -> 2단계 진입
             if (satStage.value === 1 && satWordIndex.value >= 15) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
-                satQuizList.value = getWeakWords(15); // 2단계 15개
+                satQuizList.value = getWeakWords(15);
             } 
-            // 2단계 종료 -> 3단계 진입
             else if (satStage.value === 2 && satWordIndex.value >= 15) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
-                // 3단계: 전체 25개 단어 셔플
                 const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
                 let allWords = [];
                 weekdayDays.forEach(d => { allWords = allWords.concat(getWords(currentWeek.value, d)); });
                 satQuizList.value = allWords.sort(() => Math.random() - 0.5);
             } 
-            // 3단계 종료 -> 최종 결과
             else if (satStage.value === 3 && satWordIndex.value >= 25) {
-                isReplayingDay.value = false; // 완주 결과 화면으로 이동
+                isReplayingDay.value = false;
+                if (!satCompletedWeeks.value.includes(currentWeek.value)) {
+                    satCompletedWeeks.value.push(currentWeek.value);
+                }
             }
         };
         
+        // [파일 맨 밑 기존 return { ... } 블록을 삭제하고 이것으로 교체]
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
@@ -937,13 +951,16 @@ createApp({
             availableWeeks, getWords, isLearned, isWeekUnlocked, isWeekCompleted,
             isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
-            resetAllProgress, resetWeekProgress, resetDayProgressFromUI,
-            isReplayingDay,
-            restartStage1Only, // <-- 신규 등
+            resetAllProgress, resetWeekProgress, resetDayProgressFromUI, isReplayingDay, restartStage1Only,
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
-            getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question
+            getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
+        
+            // 토요일 주말 복습 바인딩 상태 및 메서드
+            satStage, satWordIndex, satQuizList, satCorrectCount, satTotalQuestions,
+            satFeedbackMessage, satComboCount, satCurrentWord,
+            getWeakWords, startSaturdayReview, getMaskedSpelling20, triggerSatFeedback, nextSatQuestion
         };
     }
 }).mount('#app');
