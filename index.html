@@ -146,7 +146,7 @@
                 </div>
 
                 <div class="text-xs font-extrabold text-pink-400">
-                    {{ stage3Active ? '✨ 3단계 테스트' : '🌸 즐거운 학습' }}
+                    {{ selectedDay === 'Sat' ? '👑 주말 챌린지' : (stage3Active ? '✨ 3단계 테스트' : '🌸 즐거운 학습') }}
                 </div>
             </div>
 
@@ -160,81 +160,50 @@
                     {{ day === 'Sat' ? '토' : day }}
                 </button>
             </div>
-            
-            <!-- 👇 [여기 삽입] 토요일 전용 진행 헤더 및 실시간 격려 피드백 (08.20.) -->
-            <div v-if="selectedDay === 'Sat' && !isDayCompleted" class="flex-shrink-0 space-y-1.5">
-                <!-- 토요일 학습 전용 헤더 -->
-                <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 text-white p-3 rounded-2xl shadow-md flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">👑</span>
-                        <div>
-                            <h3 class="font-black text-sm tracking-wide">토요일 주말 종합 챌린지! ✨</h3>
-                            <p class="text-[11px] text-pink-100 font-semibold">
-                                {{ satStage }}단계 : {{ satStage === 1 ? '스펠링 힌트 테스트 (15문항)' : (satStage === 2 ? '소리 & 뜻 인출 테스트 (15문항)' : '🚀 스피드 퀴즈 (25문항)') }}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs bg-white/20 font-black px-2.5 py-1 rounded-full border border-white/30">
-                            {{ satWordIndex + 1 }} / {{ satStage === 3 ? 25 : 15 }}
-                        </span>
-                    </div>
-                </div>
 
-                <!-- 실시간 피드백/격려 토스트 메시지 -->
-                <transition name="fade">
-                    <div v-if="satFeedbackMessage" class="bg-purple-900/90 text-yellow-300 font-extrabold text-xs px-4 py-2 rounded-xl text-center shadow-lg border border-yellow-300/40 animate-bounce">
-                        {{ satFeedbackMessage }}
-                    </div>
-                </transition>
-            </div>
-            <!-- 👆 [여기까지 삽입] -->
-            
-            <!-- Daily Review Screen (All Stages Cleared) -->
-            <!-- 기존: v-if="isDayCompleted && !stage3Active" -->
-            <!-- 변경: !isReplayingDay 추가 -->
+            <!-- ---------------------------------------------------- -->
+            <!-- [CASE 1] 완주 성공 / 결과 화면 (토요일 & 평일 공통) -->
+            <!-- ---------------------------------------------------- -->
             <div v-if="isDayCompleted && !stage3Active && !isReplayingDay" class="bg-white p-4.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
-                <!-- 상단 영역: 완주 타이틀 옆으로 초기화 버튼 이동 -->
+                <!-- 상단 영역 -->
                 <div class="flex justify-between items-center bg-gradient-to-r from-pink-100 to-purple-100 p-3.5 rounded-2xl border border-pink-200 flex-shrink-0">
                     <div class="flex items-center gap-3">
                         <span class="text-3xl">🏆</span>
                         <div>
-                            <h2 class="text-lg font-black text-purple-900">{{ selectedDay === 'Sat' ? '토요일 주말 복습 성공! 🎉' : '오늘 공부 완주 성공! 🎉' }}</h2>
-                            <p class="text-xs font-extrabold text-pink-500">학습한 {{ currentWordList.length }}개 단어의 정답률 결과예요 ✨</p>
+                            <h2 class="text-lg font-black text-purple-900">{{ selectedDay === 'Sat' ? '토요일 주말 복습 완료! 🎉' : '오늘 공부 완주 성공! 🎉' }}</h2>
+                            <p class="text-xs font-extrabold text-pink-500">학습한 단어의 결과예요 ✨</p>
                         </div>
                     </div>
-                    <!-- 윗쪽으로 이동된 초기화 버튼 -->
                     <button @click="resetDayProgressFromUI" class="bg-purple-200/80 hover:bg-purple-300 text-purple-800 font-extrabold px-3 py-1.5 rounded-xl text-xs transition border border-purple-300 flex-shrink-0">
                         🔄 초기화
                     </button>
                 </div>
 
-                <!-- 👇 [여기 삽입] 토요일 완주 점수 및 80% 기준 성취/재도전 결과 카드 (8.20.) -->
+                <!-- 토요일 완주 피드백 화면 (80% 기준) -->
                 <div v-if="selectedDay === 'Sat'" class="text-center space-y-2 p-3.5 bg-gradient-to-b from-purple-50 to-pink-50 rounded-2xl border-2 border-pink-200 flex-shrink-0">
                     <div class="text-2xl font-black text-purple-900">
                         최종 점수: <span class="text-pink-600">{{ Math.round((satCorrectCount / satTotalQuestions) * 100) }}점</span>
                         <span class="text-xs text-purple-500 font-bold ml-1">({{ satCorrectCount }} / {{ satTotalQuestions }} 문제 맞힘)</span>
                     </div>
 
-                    <!-- 80% 이상 통과 시 -->
+                    <!-- 80% 이상 합격 -->
                     <div v-if="(satCorrectCount / satTotalQuestions) >= 0.8" class="space-y-0.5">
                         <div class="text-xl">🎉 👑 🏅</div>
                         <h3 class="text-base font-black text-purple-900">주말 챌린지 완벽 성공!</h3>
                         <p class="text-xs font-bold text-pink-500">한 주 동안 배운 25개 단어를 멋지게 마스터했어요! ✨</p>
                     </div>
 
-                    <!-- 80% 미만 재도전 유도 시 -->
+                    <!-- 80% 미만 재도전 -->
                     <div v-else class="space-y-0.5">
                         <div class="text-xl">💪 🌸 🌱</div>
                         <h3 class="text-base font-black text-purple-800">아쉬워요! 조금만 더 하면 돼요!</h3>
                         <p class="text-xs font-bold text-purple-600 leading-relaxed">
                             목표 80점까지 딱 <span class="text-pink-600 font-black">{{ Math.ceil(satTotalQuestions * 0.8) - satCorrectCount }}문제</span> 남았어요.<br>
-                            아래 단어 결과를 확인하고 다시 한번 도전해 볼까요?
+                            다시 한번 도전해 볼까요?
                         </p>
                     </div>
                 </div>
-                <!-- 👆 [여기까지 삽입] -->
-                
+
                 <!-- 2열 단어 리스트 -->
                 <div class="flex-1 overflow-y-auto pr-1">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -254,21 +223,88 @@
                         </div>
                     </div>
                 </div>
-            
-                <!-- 하단 영역: 1단계부터 다시 / 3단계만 / 다음 학습으로 버튼 배치 -->
+
+                <!-- 하단 버튼 -->
                 <div class="flex gap-2 pt-1 border-t border-pink-100 flex-shrink-0">
-                    <button @click="restartStage1Only" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
-                        🔄 1단계 테스트부터 다시
+                    <button @click="startLesson(currentWeek, 'Sat')" v-if="selectedDay === 'Sat'" class="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">
+                        🔄 토요일 챌린지 다시 도전
                     </button>
-                    <button @click="startStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
-                        🎨 3단계 테스트만
-                    </button>
+                    <template v-else>
+                        <button @click="restartStage1Only" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                            🔄 1단계 테스트부터 다시
+                        </button>
+                        <button @click="startStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
+                            🎨 3단계 테스트만
+                        </button>
+                    </template>
                     <button @click="advanceToNextDay" class="flex-[1.5] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
                         <span>다음 학습으로</span> 💖
                     </button>
                 </div>
             </div>
-            <!-- STAGE 3: Final Challenge View -->
+
+            <!-- ---------------------------------------------------- -->
+            <!-- [CASE 2] 토요일 전용 주말 종합 챌린지 진행 화면 -->
+            <!-- ---------------------------------------------------- -->
+            <div v-else-if="selectedDay === 'Sat' && !isDayCompleted" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-2.5 overflow-hidden">
+                <!-- 토요일 상단 헤더 -->
+                <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 text-white p-3 rounded-2xl shadow-md flex justify-between items-center flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">👑</span>
+                        <div>
+                            <h3 class="font-black text-sm tracking-wide">토요일 주말 종합 챌린지! ✨</h3>
+                            <p class="text-[11px] text-pink-100 font-semibold">
+                                {{ satStage }}단계 : {{ satStage === 1 ? '스펠링 힌트 테스트 (15문항)' : (satStage === 2 ? '소리 & 뜻 인출 테스트 (15문항)' : '🚀 스피드 퀴즈 (25문항)') }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs bg-white/20 font-black px-2.5 py-1 rounded-full border border-white/30">
+                            {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 실시간 피드백 연출 토스트 -->
+                <div v-if="satFeedbackMessage" class="bg-purple-900/90 text-yellow-300 font-extrabold text-xs px-4 py-2 rounded-xl text-center shadow-lg border border-yellow-300/40 animate-bounce flex-shrink-0">
+                    {{ satFeedbackMessage }}
+                </div>
+
+                <!-- 토요일 문제 카드 -->
+                <div v-if="satCurrentWord" class="flex-1 flex flex-col justify-center space-y-4 bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 p-4 rounded-2xl shadow-sm min-h-0 text-center">
+                    <!-- 문제 발음 및 뜻 안내 -->
+                    <div class="space-y-2">
+                        <button @click="speak(satCurrentWord.english, 0.75)" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5">
+                            🔊 단어 소리 듣기 🌸
+                        </button>
+                        <div class="text-xl font-black text-purple-900 mt-2">
+                            뜻: "{{ satCurrentWord.meaning }}"
+                        </div>
+                        <div v-if="satStage === 1" class="text-sm font-mono font-black text-pink-500 bg-white/80 py-1.5 px-3 rounded-xl border border-pink-200 inline-block">
+                            💡 힌트: {{ getMaskedWord(satCurrentWord.english) }}
+                        </div>
+                    </div>
+
+                    <!-- 정답 입력 양식 -->
+                    <div class="max-w-xs mx-auto w-full space-y-2">
+                        <input v-model="satInputText"
+                               @keyup.enter="submitSatAnswer"
+                               type="text"
+                               autocapitalize="off"
+                               autocorrect="off"
+                               spellcheck="false"
+                               placeholder="스펠링을 입력하세요"
+                               class="w-full h-11 px-3 bg-white border-2 border-pink-300 rounded-xl font-bold text-lg text-purple-900 text-center focus:outline-none focus:border-purple-500 shadow-inner">
+                        <button @click="submitSatAnswer" class="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold py-2.5 rounded-xl shadow-md text-sm transition">
+                            정답 제출하기 ✨
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ---------------------------------------------------- -->
+            <!-- [CASE 3] 평일(월~금) 3단계 테스트 화면 -->
+            <!-- ---------------------------------------------------- -->
             <div v-else-if="stage3Active && currentStage3Item" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-2 overflow-hidden">
                 <div class="text-center bg-purple-100 text-purple-700 py-1 px-3 rounded-full text-xs font-extrabold w-fit mx-auto flex-shrink-0">
                     ✨ 3단계: 종합 테스트 🏆 ({{ stage3Index + 1 }} / {{ stage3List.length }})
@@ -281,11 +317,8 @@
                         <h3 class="text-base font-extrabold text-purple-900">'{{ currentStage3Item.word.meaning }}'을(를) 맞춰서 써보세요!</h3>
                     </div>
 
-                    <!-- Canvas Container -->
                     <div class="relative flex-1 min-h-0 border-2 border-purple-200 rounded-2xl bg-purple-50/20 overflow-hidden flex items-center justify-center">
-                        <canvas id="pencilCanvas"
-                                ref="canvasRef"
-                                class="absolute inset-0 w-full h-full touch-none cursor-crosshair z-10"></canvas>
+                        <canvas id="pencilCanvas" ref="canvasRef" class="absolute inset-0 w-full h-full touch-none cursor-crosshair z-10"></canvas>
                         
                         <div v-if="stage3AnswerRevealed" class="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                             <span class="text-5xl font-black text-pink-300/60 font-mono tracking-widest select-none">
@@ -348,7 +381,9 @@
                 </div>
             </div>
 
-            <!-- Learning Active View (Stage 1 & 2) -->
+            <!-- ---------------------------------------------------- -->
+            <!-- [CASE 4] 평일(월~금) 1, 2단계 학습 진행 화면 -->
+            <!-- ---------------------------------------------------- -->
             <div v-else-if="currentWord && !stage3Active" class="flex-1 flex flex-col justify-between space-y-2.5 overflow-hidden">
                 <!-- Progress Header -->
                 <div class="bg-white p-2.5 rounded-2xl shadow-sm border border-pink-100 flex-shrink-0 space-y-1">
@@ -375,14 +410,11 @@
                             1단계: 소리 듣고 입력하기 🎀
                         </div>
 
-                        <!-- Image + Word Info Layout -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch flex-1 min-h-0">
-                            <!-- Image Display -->
                             <div class="w-full h-full bg-pink-50/30 rounded-2xl overflow-hidden flex items-center justify-center border border-pink-100 p-2 min-h-0">
                                 <img :src="getWordImage(currentWord)" class="max-h-full max-w-full object-contain rounded-xl" @error="handleImgError">
                             </div>
 
-                            <!-- Word Info -->
                             <div class="flex flex-col justify-between gap-2 min-h-0">
                                 <div class="bg-gradient-to-br from-pink-50 to-purple-50 p-3 rounded-2xl text-center space-y-0.5 border border-pink-100 flex-shrink-0">
                                     <div class="flex items-center justify-center gap-2">
@@ -392,7 +424,6 @@
                                     <div class="text-lg md:text-xl font-extrabold text-pink-500">{{ currentWord.meaning }}</div>
                                 </div>
 
-                                <!-- Example Sentence -->
                                 <div v-if="currentWord.example" class="bg-white border border-purple-100 p-2.5 rounded-2xl text-left space-y-1 shadow-sm flex-1 overflow-y-auto">
                                     <div class="flex justify-between items-center">
                                         <span class="text-[11px] font-extrabold text-purple-400">💬 오늘의 예문</span>
@@ -406,13 +437,11 @@
                             </div>
                         </div>
 
-                        <!-- Typing Area -->
                         <div class="space-y-1.5 bg-purple-50/50 p-2.5 rounded-2xl border border-purple-100 flex-shrink-0">
                             <div class="flex justify-between items-center text-xs font-bold text-purple-700">
                                 <span>⌨️ 알맞은 스펠링을 써주세요 ({{ practiceCount }}/3회)</span>
                             </div>
 
-                            <!-- Realtime Chars -->
                             <div class="flex gap-1 min-h-[36px] items-center overflow-x-auto py-0.5">
                                 <span v-if="practiceText.length === 0" class="text-xs font-semibold text-purple-300">알파벳 입력 중...</span>
                                 <span v-else v-for="(char, idx) in practiceText.split('')" :key="idx"
@@ -422,7 +451,6 @@
                                 </span>
                             </div>
 
-                            <!-- Input Field -->
                             <div class="flex gap-2">
                                 <input ref="practiceInput"
                                        v-model="practiceText"
@@ -442,7 +470,6 @@
                                 </button>
                             </div>
 
-                            <!-- Progress Dots -->
                             <div class="flex justify-center gap-1.5 pt-0.5">
                                 <div v-for="i in 3" :key="i"
                                      class="w-3 h-3 rounded-full transition-all"
@@ -458,7 +485,7 @@
                             2단계: {{ quizSubStage === 1 ? '빈칸 채우기 🧩 (1/2)' : '소리 블라인드 테스트 🎧 (2/2)' }}
                         </div>
 
-                        <!-- SUBSTAGE 1: Partial Blanks -->
+                        <!-- SUBSTAGE 1 -->
                         <div v-if="quizSubStage === 1" class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center flex-1 min-h-0">
                             <div class="w-full h-full bg-pink-50/30 rounded-2xl overflow-hidden flex items-center justify-center border border-pink-100 p-2 min-h-0">
                                 <img :src="getWordImage(currentWord)" class="max-h-full max-w-full object-contain rounded-xl" @error="handleImgError">
@@ -506,7 +533,7 @@
                             </div>
                         </div>
 
-                        <!-- SUBSTAGE 2: Sound Blind Test -->
+                        <!-- SUBSTAGE 2 -->
                         <div v-else class="flex-1 flex flex-col justify-center space-y-3 bg-gradient-to-br from-purple-900 to-indigo-900 text-white p-4 rounded-2xl shadow-md text-center min-h-0">
                             <div class="text-3xl animate-bounce">🎧</div>
                             <div class="space-y-0.5">
