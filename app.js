@@ -430,7 +430,11 @@ createApp({
         const changeDay = (day) => {
             isReplayingDay.value = false;
             selectedDay.value = day;
-            resetDayProgress();
+            if (day === 'Sat') {
+                startSaturdayReview();
+            } else {
+                resetDayProgress();
+            }
         };
 
         const resetDayProgress = (forceStartOver = false) => {
@@ -485,7 +489,7 @@ createApp({
             if (d === 'Sat') {
                 if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸\n(월~금요일 학습 단어는 삭제되지 않고 유지됩니다)`)) {
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => weekNum !== w);
-                    resetDayProgress(true);
+                    startSaturdayReview();
                 }
             } else {
                 const targetIdx = days.indexOf(d);
@@ -849,15 +853,14 @@ createApp({
         const advanceToNextDay = () => {
             const targetIdx = days.indexOf(selectedDay.value);
             if (targetIdx < days.length - 1) {
-                selectedDay.value = days[targetIdx + 1];
+                changeDay(days[targetIdx + 1]);
             } else {
                 const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
                 if (weekIdx < availableWeeks.value.length - 1) {
                     currentWeek.value = availableWeeks.value[weekIdx + 1];
-                    selectedDay.value = 'Mon';
+                    changeDay('Mon');
                 }
             }
-            resetDayProgress();
         };
 
         const getWordImage = (word) => {
@@ -938,11 +941,17 @@ createApp({
         
         const startSaturdayReview = () => {
             isReplayingDay.value = true;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
             satQuizList.value = getWeakWords(15);
+
+            if (satQuizList.value.length > 0 && satQuizList.value[0]) {
+                speak(satQuizList.value[0].english, 0.75);
+            }
         };
         
         const getMaskedSpelling20 = (wordStr) => {
@@ -996,15 +1005,22 @@ createApp({
                 satStage.value = 3;
                 satWordIndex.value = 0;
                 const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-                let allWords = [];
-                weekdayDays.forEach(d => { allWords = allWords.concat(getWords(currentWeek.value, d)); });
-                satQuizList.value = allWords.sort(() => Math.random() - 0.5);
+                let allWordsList = [];
+                weekdayDays.forEach(d => { allWordsList = allWordsList.concat(getWords(currentWeek.value, d)); });
+                satQuizList.value = allWordsList.sort(() => Math.random() - 0.5);
             } 
             else if (satStage.value === 3 && satWordIndex.value >= 25) {
                 isReplayingDay.value = false;
+                isDayCompleted.value = true;
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
+                playCorrectSound();
+                return;
+            }
+
+            if (satCurrentWord.value) {
+                speak(satCurrentWord.value.english, 0.75);
             }
         };
 
