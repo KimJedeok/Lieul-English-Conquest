@@ -340,13 +340,25 @@ createApp({
             alert(`✅ 총 ${parsed.length}개 단어가 저장되었습니다! 🌸`);
         };
 
-        const availableWeeks = computed(() => [...new Set(allWords.value.map(w => w.week))].sort((a, b) => a - b));
+        const availableWeeks = computed(() => [...new Set(allWords.value.map(w => Number(w.week) || 1))].sort((a, b) => a - b));
         
         const getWords = (week, day) => {
+            const wStr = String(week);
             if (day === 'Sat') {
-                return allWords.value.filter(w => w.week === week && w.day !== 'Sat');
+                return allWords.value.filter(w => String(w.week) === wStr && String(w.day).toLowerCase() !== 'sat');
             }
-            return allWords.value.filter(w => w.week === week && w.day === day);
+            const dLower = String(day).toLowerCase();
+            return allWords.value.filter(w => {
+                const isWeekMatch = String(w.week) === wStr;
+                const wDayLower = String(w.day).toLowerCase();
+                const isDayMatch = wDayLower === dLower ||
+                                  (dLower === 'mon' && ['mon', '1'].includes(wDayLower)) ||
+                                  (dLower === 'tue' && ['tue', '2'].includes(wDayLower)) ||
+                                  (dLower === 'wed' && ['wed', '3'].includes(wDayLower)) ||
+                                  (dLower === 'thu' && ['thu', '4'].includes(wDayLower)) ||
+                                  (dLower === 'fri' && ['fri', '5'].includes(wDayLower));
+                return isWeekMatch && isDayMatch;
+            });
         };
         
         const isLearned = (word) => learnedWordIDs.value.includes(word.id);
@@ -355,16 +367,18 @@ createApp({
         };
 
         const isWeekCompleted = (week) => {
-            const words = allWords.value.filter(w => w.week === week);
+            const wStr = String(week);
+            const words = allWords.value.filter(w => String(w.week) === wStr);
             const allWordsLearned = words.length > 0 && words.every(w => isLearned(w));
-            return allWordsLearned && satCompletedWeeks.value.includes(week);
+            return allWordsLearned && satCompletedWeeks.value.some(w => String(w) === wStr);
         };
 
         const isWeekUnlocked = (week) => true;
 
         const isDayDone = (week, day) => {
+            const wStr = String(week);
             if (day === 'Sat') {
-                return satCompletedWeeks.value.includes(week);
+                return satCompletedWeeks.value.some(w => String(w) === wStr);
             }
             const words = getWords(week, day);
             return words.length > 0 && words.every(w => isLearned(w));
@@ -384,10 +398,11 @@ createApp({
         const overallProgressRate = computed(() => allWords.value.length === 0 ? 0 : learnedWordIDs.value.length / allWords.value.length);
         
         const getWeekProgressRate = (week) => {
-            const words = allWords.value.filter(w => w.week === week);
+            const wStr = String(week);
+            const words = allWords.value.filter(w => String(w.week) === wStr);
             if (words.length === 0) return 0;
             const learnedCount = words.filter(w => isLearned(w)).length;
-            const satDone = satCompletedWeeks.value.includes(week) ? 1 : 0;
+            const satDone = satCompletedWeeks.value.some(w => String(w) === wStr) ? 1 : 0;
             return (learnedCount + (satDone ? (words.length * 0.2) : 0)) / (words.length * 1.2);
         };
 
@@ -424,7 +439,7 @@ createApp({
             }
 
             currentWeek.value = Number(week) || 1;
-            selectedDay.value = day || 'Mon';
+            selectedDay.value = String(day || 'Mon');
             activeScreen.value = 'learning';
 
             if (selectedDay.value === 'Sat') {
@@ -435,9 +450,10 @@ createApp({
         };
 
         const changeDay = (day) => {
+            activeScreen.value = 'learning';
             isReplayingDay.value = false;
-            selectedDay.value = day;
-            if (day === 'Sat') {
+            selectedDay.value = String(day);
+            if (selectedDay.value === 'Sat') {
                 startSaturdayReview();
             } else {
                 resetDayProgress();
@@ -483,9 +499,10 @@ createApp({
 
         const resetWeekProgress = (week) => {
             if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸\n(다른 주차의 진도는 그대로 보존됩니다)`)) {
-                const weekWordIDs = allWords.value.filter(w => w.week === week).map(w => w.id);
+                const wStr = String(week);
+                const weekWordIDs = allWords.value.filter(w => String(w.week) === wStr).map(w => w.id);
                 learnedWordIDs.value = learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
-                satCompletedWeeks.value = satCompletedWeeks.value.filter(wNum => wNum !== week);
+                satCompletedWeeks.value = satCompletedWeeks.value.filter(wNum => String(wNum) !== wStr);
             }
         };
 
@@ -495,18 +512,18 @@ createApp({
 
             if (d === 'Sat') {
                 if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸\n(월~금요일 학습 단어는 삭제되지 않고 유지됩니다)`)) {
-                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => weekNum !== w);
+                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     startSaturdayReview();
                 }
             } else {
                 const targetIdx = days.indexOf(d);
                 const affectedDays = days.slice(targetIdx, 5);
-                const affectedWords = allWords.value.filter(word => word.week === w && affectedDays.includes(word.day));
+                const affectedWords = allWords.value.filter(word => String(word.week) === String(w) && affectedDays.includes(word.day));
                 const affectedIDs = affectedWords.map(word => word.id);
 
                 if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸\n(이전 요일 및 다른 주차의 진도는 안전하게 보존됩니다)`)) {
                     learnedWordIDs.value = learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
-                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => weekNum !== w);
+                    satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     resetDayProgress(true);
                 }
             }
@@ -905,36 +922,14 @@ createApp({
         };
 
         const getWeakWords = (count) => {
-            const dayMap = {
-                'Mon': ['Mon', 'mon', 'MON', 1, '1'],
-                'Tue': ['Tue', 'tue', 'TUE', 2, '2'],
-                'Wed': ['Wed', 'wed', 'WED', 3, '3'],
-                'Thu': ['Thu', 'thu', 'THU', 4, '4'],
-                'Fri': ['Fri', 'fri', 'FRI', 5, '5']
-            };
-        
-            let allWeekdayWords = [];
-            const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-        
-            weekdayDays.forEach(d => {
-                let words = getWords(currentWeek.value, d) || [];
-                if (words.length === 0 && allWords.value) {
-                    const validDayValues = dayMap[d];
-                    words = allWords.value.filter(w => {
-                        const isWeekMatch = String(w.week) === String(currentWeek.value);
-                        const isDayMatch = validDayValues.includes(w.day);
-                        return isWeekMatch && isDayMatch;
-                    });
-                }
-                allWeekdayWords = allWeekdayWords.concat(words);
-            });
-        
+            let allWeekdayWords = getWords(currentWeek.value, 'Sat') || [];
+
             if (allWeekdayWords.length === 0 && allWords.value) {
                 allWeekdayWords = allWords.value.filter(w => String(w.week) === String(currentWeek.value));
             }
-        
+
             if (allWeekdayWords.length === 0) return [];
-        
+
             const sorted = [...allWeekdayWords].sort((a, b) => {
                 const idA = a.id || a.word;
                 const idB = b.id || b.word;
@@ -942,11 +937,12 @@ createApp({
                 const accB = Number(getWordAccuracy(idB)) || 0;
                 return accA - accB;
             });
-        
+
             return sorted.slice(0, count);
         };
         
         const startSaturdayReview = () => {
+            activeScreen.value = 'learning';
             isReplayingDay.value = false;
             stage3Active.value = false;
             isDayCompleted.value = false;
@@ -955,6 +951,10 @@ createApp({
             satCorrectCount.value = 0;
             satComboCount.value = 0;
             satQuizList.value = getWeakWords(15);
+
+            if (satQuizList.value.length === 0) {
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
+            }
 
             if (satQuizList.value.length > 0 && satQuizList.value[0]) {
                 speak(satQuizList.value[0].english, 0.75);
@@ -1003,20 +1003,17 @@ createApp({
         
             satWordIndex.value++;
         
-            if (satStage.value === 1 && satWordIndex.value >= 15) {
+            if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
                 satQuizList.value = getWeakWords(15);
             } 
-            else if (satStage.value === 2 && satWordIndex.value >= 15) {
+            else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
-                const weekdayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-                let allWordsList = [];
-                weekdayDays.forEach(d => { allWordsList = allWordsList.concat(getWords(currentWeek.value, d)); });
-                satQuizList.value = allWordsList.sort(() => Math.random() - 0.5);
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
             } 
-            else if (satStage.value === 3 && satWordIndex.value >= 25) {
+            else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
                 isReplayingDay.value = false;
                 isDayCompleted.value = true;
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
