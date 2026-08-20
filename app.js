@@ -620,7 +620,12 @@ createApp({
             }
         };
 
-        const getMaskedWord = (word) => word ? word[0] + ' _'.repeat(word.length - 1) : '';
+        const getMaskedWord = (word) => {
+            if (!word) return '';
+            const str = typeof word === 'string' ? word : (word.english || '');
+            if (!str) return '';
+            return str[0] + ' _'.repeat(str.length - 1);
+        };
 
         const triggerHint = () => {
             if (hintLevel.value < 2) {
