@@ -416,11 +416,18 @@ createApp({
         const currentStage3Item = computed(() => stage3List.value[stage3Index.value] || null);
 
         const startLesson = (week, day) => {
-            currentWeek.value = week;
-            selectedDay.value = day;
+            if (typeof week !== 'number' && typeof week !== 'string') {
+                week = todayLesson.value.week;
+                day = todayLesson.value.day;
+            } else if (!day) {
+                day = todayLesson.value.day;
+            }
+
+            currentWeek.value = Number(week) || 1;
+            selectedDay.value = day || 'Mon';
             activeScreen.value = 'learning';
-            
-            if (day === 'Sat') {
+
+            if (selectedDay.value === 'Sat') {
                 startSaturdayReview();
             } else {
                 resetDayProgress();
@@ -940,7 +947,7 @@ createApp({
         };
         
         const startSaturdayReview = () => {
-            isReplayingDay.value = true;
+            isReplayingDay.value = false;
             stage3Active.value = false;
             isDayCompleted.value = false;
             satStage.value = 1;
