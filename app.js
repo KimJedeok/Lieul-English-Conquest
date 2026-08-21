@@ -1198,7 +1198,7 @@ createApp({
             }, 1500);
         };
 
-        return {
+return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
             currentIndex, currentMode, practiceText, practiceCount, quizText, isDayCompleted,
@@ -1218,7 +1218,11 @@ createApp({
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
             isSatStageStarted, startSatStage,
-            playTypingSound, startSatStage3Only, advanceFromSat
+            
+            // 추가된 기능들
+            playTypingSound,
+            startSatStage3Only,
+            advanceFromSat
         };
     }
 }).mount('#app');
