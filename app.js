@@ -56,9 +56,9 @@ createApp({
                     osc.start();
                     osc.stop(ctx.currentTime + 0.3);
                 } else if (type === 'typing') {
-                    osc.type = 'triangle'; // 톡톡 튀는 키보드 느낌의 파형 설정
-                    osc.frequency.setValueAtTime(600, ctx.currentTime); // 음높이 조정 (400 -> 600Hz)
-                    gain.gain.setValueAtTime(0.08, ctx.currentTime); // 볼륨 대폭 상향 (0.02 -> 0.08)
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
                     osc.start();
                     osc.stop(ctx.currentTime + 0.08);
@@ -94,20 +94,18 @@ createApp({
         const selectedDay = ref('Mon');
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        const isSatStageStarted = ref(false); // 단계 시작 여부 플래그
+        const isSatStageStarted = ref(false);
         
-        // [단계 시작 버튼 클릭 함수]
         const startSatStage = () => {
             isSatStageStarted.value = true;
             focusInput();
             if (satCurrentWord.value) {
                 speak(satCurrentWord.value.english, 0.75);
                 if (satStage.value === 3) {
-                    startSatTimer(); // 3단계일 때만 시작 버튼 클릭 시 타이머 동작
+                    startSatTimer();
                 }
             }
         };
-        
 
         // ==================== [ 토요일 복습 커스텀 상태 및 타이머 ] ====================
         const satStage = ref(1);
@@ -120,9 +118,8 @@ createApp({
         const satInputText = ref('');
         const satTimer = ref(10);
         let satTimerInterval = null;
-        const timerDisplay = ref('');
 
-       // 👇 [추가] Vue Warn 경고 방지 및 타이머 바인딩용
+        // 👇 [수정 완료] timerDisplay 중복 선언 제거 후 computed만 적용
         const timerDisplay = computed(() => {
             return satTimer.value !== null && satTimer.value !== undefined ? `${satTimer.value}` : '';
         }); 
@@ -206,7 +203,7 @@ createApp({
 
         const practiceInput = ref(null);
         const quizInput = ref(null);
-        const satInput = ref(null); // 토요일 입력창 Ref 추가
+        const satInput = ref(null);
         const canvasRef = ref(null);
         const fileInput = ref(null);
 
@@ -591,7 +588,6 @@ createApp({
             }
         };
 
-        // [focusInput 함수 수정]
         const focusInput = () => {
             nextTick(() => {
                 if (selectedDay.value === 'Sat') {
@@ -991,10 +987,8 @@ createApp({
             practiceText.value = '';
             stage3Active.value = false;
             isReplayingDay.value = true;
-            // 👇 [추가] 완료 상태를 해제해야 1단계 학습 화면이 정상적으로 표시됩니다.
             isDayCompleted.value = false; 
             
-            // 👇 [추가] 1단계 재시작 시 입력창 포커스 및 첫 단어 음성 재생
             focusInput();
             if (currentWord.value) speak(currentWord.value.english, 0.75);
         };
@@ -1019,33 +1013,27 @@ createApp({
             return sorted.slice(0, count);
         };
 
-        // [Base State 영역]
-        const satHintText = ref(''); // 1단계 힌트 저장용 Ref
+        const satHintText = ref('');
         
-        // [1단계 힌트 생성 함수]
         const generateSatHint = (wordStr) => {
             if (!wordStr) return '';
             const len = wordStr.length;
             
-            // 30% ~ 50% 범위의 랜덤 비율 적용 (최소 1개 이상 가림)
-            const ratio = 0.3 + Math.random() * 0.2; // 0.30 ~ 0.50
+            const ratio = 0.3 + Math.random() * 0.2;
             const hideCount = Math.max(1, Math.round(len * ratio));
         
-            // 중복 없는 랜덤 인덱스 선택
             const hideIndices = new Set();
             while (hideIndices.size < hideCount) {
                 const randIdx = Math.floor(Math.random() * len);
                 hideIndices.add(randIdx);
             }
         
-            // 가려진 글자는 '_'로 표시
             return wordStr
                 .split('')
                 .map((char, idx) => (hideIndices.has(idx) ? '_' : char))
                 .join(' ');
         };
-        
-        // ==================== [ 토요일 주말 복습 로직 ] ====================
+
         const startSaturdayReview = () => {
             stopSatTimer();
             activeScreen.value = 'learning';
@@ -1184,7 +1172,6 @@ createApp({
             }, 1500);
         };
 
-        // [신규 기능 1] 토요일 3단계만 바로 재도전
         const startSatStage3Only = () => {
             stopSatTimer();
             activeScreen.value = 'learning';
@@ -1203,7 +1190,6 @@ createApp({
             focusInput();
         };
 
-        // [신규 기능 2] 다음 학습으로 이동
         const advanceFromSat = () => {
             stopSatTimer();
             const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
