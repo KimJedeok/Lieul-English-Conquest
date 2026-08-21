@@ -155,17 +155,14 @@ createApp({
 
         const startSatStage = () => {
             isSatStageStarted.value = true;
-            
-            // 1. 단계별 전체 문제 수 설정 (1·2단계 15문제 / 3단계 25문제)
             satTotalQuestions.value = satStage.value === 3 ? 25 : 15;
         
-            // 2. DOM이 업데이트된 후 포커스 및 음성/타이머 처리
             nextTick(() => {
                 focusInput();
                 
                 if (satCurrentWord.value) {
                     satHintText.value = generateSatHint(satCurrentWord.value.english);
-                    speak(satCurrentWord.value.english, 0.75); // 시작 버튼 클릭 시 첫 단어 발음 재생
+                    speak(satCurrentWord.value.english, 0.75);
                     
                     if (satStage.value === 3) {
                         startSatTimer();
@@ -174,7 +171,6 @@ createApp({
             });
         };
 
-        // 2. 다음 문제 이동 및 단계 전환 함수
         const nextSatQuestion = (isCorrect) => {
             stopSatTimer();
             if (isCorrect) {
@@ -184,21 +180,21 @@ createApp({
             satWordIndex.value++;
             satInputText.value = '';
         
-            // 1단계 종료 -> 2단계 시작 대기 화면으로 전환
+            // 1단계 종료 -> 2단계 무작위 셔플로 재배치
             if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
-                satQuizList.value = getWeakWords(15);
+                satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
                 isSatStageStarted.value = false;
-                return; // ★ 시작 버튼 누르기 전 음성 재생 방지
+                return;
             } 
-            // 2단계 종료 -> 3단계 시작 대기 화면으로 전환
+            // 2단계 종료 -> 3단계 전환
             else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
                 isSatStageStarted.value = false;
-                return; // ★ 시작 버튼 누르기 전 음성 재생 방지
+                return;
             } 
             // 3단계 종료 -> 학습 완료
             else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
@@ -213,7 +209,6 @@ createApp({
         
             focusInput();
             
-            // 같은 단계 내 다음 문제 진행 시 발음 재생
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
                 speak(satCurrentWord.value.english, 0.75);
@@ -615,7 +610,6 @@ createApp({
             quizSubStage.value = 1;
             quizPart1Count.value = 0;
             quizPart2Count.value = 0;
-            quizBlanks.value = [];
             soundBlindFailCount.value = 0;
             hintLevel.value = 0;
 
@@ -1116,7 +1110,6 @@ createApp({
                 .join(' ');
         };
 
-        // 입력 잠금 플래그
         const isInputLocked = ref(false);
         
         const startSaturdayReview = () => {
@@ -1126,21 +1119,14 @@ createApp({
             stage3Active.value = false;
             isInputLocked.value = false;
 
-            // 해당 주차의 토요일 전체 단어 목록 불러오기
             const weekWords = getWords(currentWeek.value, 'Sat');
-            
-            // 이미 완료된 주차인지 검사
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
         
             if (isCompleted) {
-                // 1. 완료 상태로 전환
                 isDayCompleted.value = true;
-                
-                // 2. 결과 화면 표시용 세션 데이터 복원
                 satQuizList.value = weekWords;
                 satTotalQuestions.value = weekWords.length;
                 
-                // 3. 저장된 wordStats 기준 정답 기록 집계
                 satCorrectCount.value = weekWords.filter(w => {
                     const stat = wordStats.value[w.id];
                     return stat && stat.correct > 0;
@@ -1149,7 +1135,6 @@ createApp({
                 return;
             }
         
-            // 미완료 상태일 때만 학습 진행          
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
@@ -1161,7 +1146,8 @@ createApp({
             isFeedbackCorrect.value = true;
             isSatStageStarted.value = false;
             
-            satQuizList.value = getWeakWords(15);
+            // 1단계: 취약 단어를 무작위 순서로 설정
+            satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
            
             if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
@@ -1203,12 +1189,10 @@ createApp({
             stopSatTimer();
             isInputLocked.value = false;
         
-            // 1. 현재 주차의 토요일 완료 기록 해제
             satCompletedWeeks.value = satCompletedWeeks.value.filter(
                 w => String(w) !== String(currentWeek.value)
             );
         
-            // 2. 화면 상태 및 복습 진행도 초기화
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
@@ -1220,13 +1204,11 @@ createApp({
             isFeedbackCorrect.value = true;
             isSatStageStarted.value = false;
         
-            // 3. 퀴즈 데이터 재설정 (취약 단어 우선 추출)
-            satQuizList.value = getWeakWords(15);
+            satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
             if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
         
-            // 4. 첫 단어 힌트 세팅
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
             }
@@ -1308,7 +1290,7 @@ createApp({
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
             currentIndex, currentMode, practiceText, practiceCount, quizText, isDayCompleted,
-            quizSubStage, quizPart1Count, quizPart2Count, quizBlanks, soundBlindFailCount, hintLevel,
+            quizSubStage, quizPart1Count, quizPart2Count, quizBlanks, soundBlindFailCount, hintLevel, triggerHint,
             stage3Active, stage3List, stage3Index, stage3AnswerRevealed, currentStage3Item,
             practiceInput, quizInput, satInput, canvasRef, fileInput, showConfirmModal,
             openConfirmModal, confirmLoadFile, cancelLoadFile, handleFileUpload,
@@ -1326,8 +1308,7 @@ createApp({
             isSatStageStarted, startSatStage,
             playTypingSound,
             startSatStage3Only,
-            advanceFromSat,
-            triggerHint
+            advanceFromSat
         };
     }
 }).mount('#app');
