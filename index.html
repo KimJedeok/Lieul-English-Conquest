@@ -264,66 +264,105 @@
             <!-- ---------------------------------------------------- -->
             <!-- [CASE 2] 토요일 전용 주말 종합 챌린지 진행 화면 -->
             <!-- ---------------------------------------------------- -->
-            <div v-else-if="selectedDay === 'Sat' && !isDayCompleted" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-2.5 overflow-hidden">
-                <!-- 토요일 상단 헤더 -->
-                <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 text-white p-3 rounded-2xl shadow-md flex justify-between items-center flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">👑</span>
-                        <div>
-                            <h3 class="font-black text-sm tracking-wide">토요일 주말 종합 챌린지! ✨</h3>
-                            <p class="text-[11px] text-pink-100 font-semibold">
-                                {{ satStage }}단계 : {{ satStage === 1 ? '스펠링 힌트 테스트 (15문항)' : (satStage === 2 ? '소리 & 뜻 인출 테스트 (15문항)' : '🚀 스피드 퀴즈 (25문항)') }}
+            <!-- 토요일 학습 전용 좌/우 2분할 챌린지 화면 -->
+            <div v-if="selectedDay === 'Sat' && !isDayCompleted" class="grid grid-cols-1 md:grid-cols-12 gap-6 p-4 max-w-6xl mx-auto">
+                
+                <!-- [왼쪽 영역] 설명, 피드백, 3단계 타이머, 시작 버튼 -->
+                <div class="md:col-span-5 bg-white p-6 rounded-2xl shadow-lg border border-purple-100 flex flex-col justify-between">
+                    <div>
+                        <!-- 단계 배지 및 제목 -->
+                        <div :class="satStageThemeClass" class="inline-block px-3 py-1.5 rounded-full text-xs font-bold mb-4 shadow-sm">
+                            {{ satStageTitle }}
+                        </div>
+            
+                        <!-- 단계별 상세 안내 -->
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                            <h4 class="font-bold text-gray-700 text-sm mb-1">💡 학습 안내</h4>
+                            <p v-if="satStage === 1" class="text-xs text-gray-600 leading-relaxed">
+                                주간 취약 단어를 집중적으로 복습합니다.<br>알파벳이 30~50% 무작위로 가려진 힌트를 보고 단어를 완성하세요!
+                            </p>
+                            <p v-else-if="satStage === 2" class="text-xs text-gray-600 leading-relaxed">
+                                텍스트 힌트가 지워집니다.<br>오직 재생되는 소리만 듣고 올바른 철자를 작성해 보세요!
+                            </p>
+                            <p v-else class="text-xs text-gray-600 leading-relaxed">
+                                최종 스피드 테스트입니다.<br>문제당 <b>5초 제한시간</b> 내에 소리를 듣고 빠르게 답을 입력하세요!
                             </p>
                         </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs bg-white/20 font-black px-2.5 py-1 rounded-full border border-white/30">
-                            {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
-                        </span>
-                    </div>
-                </div>
-
-                <!-- 📢 토요일 전용 큼직한 실시간 피드백 영역 -->
-                <div v-if="feedbackMessage" 
-                     :class="[
-                         'p-3 rounded-2xl text-center font-black text-sm md:text-base shadow-md border-2 transition-all duration-300 animate-bounce flex-shrink-0 flex items-center justify-center gap-2',
-                         isFeedbackCorrect ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-rose-100 border-rose-400 text-rose-800'
-                     ]">
-                    <span class="text-xl md:text-2xl">{{ isFeedbackCorrect ? '🎉' : '❌' }}</span>
-                    <span>{{ feedbackMessage }}</span>
-                </div>
-
-                <!-- 토요일 문제 카드 -->
-                <div v-if="satCurrentWord" class="flex-1 flex flex-col justify-center space-y-4 bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 p-4 rounded-2xl shadow-sm min-h-0 text-center">
-                    <!-- 문제 발음 및 뜻 안내 -->
-                    <div class="space-y-2">
-                        <button @click="speak(satCurrentWord.english, 0.75)" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5">
-                            🔊 단어 소리 듣기 🌸
-                        </button>
-                        <div class="text-xl font-black text-purple-900 mt-2">
-                            뜻: "{{ satCurrentWord.meaning }}"
+            
+                        <!-- 3단계 전용 타이머 (왼쪽배치) -->
+                        <div v-if="satStage === 3 && isSatStageStarted" class="my-4 p-5 bg-rose-50 rounded-2xl border-2 border-rose-200 text-center shadow-inner">
+                            <span class="text-xs font-extrabold text-rose-500 uppercase tracking-wider">Remaining Time</span>
+                            <div class="text-5xl font-black text-rose-600 animate-pulse mt-1">{{ satTimer }}초</div>
                         </div>
-                        <div v-if="satStage === 1" class="text-sm font-mono font-black text-pink-500 bg-white/80 py-1.5 px-3 rounded-xl border border-pink-200 inline-block">
-                            💡 힌트: {{ satHintText }}
+            
+                        <!-- 정답/오답 상세 피드백 -->
+                        <div v-if="feedbackMessage" 
+                             :class="isFeedbackCorrect ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'" 
+                             class="p-4 rounded-xl border-2 text-sm font-bold shadow-sm transition-all mt-4">
+                            {{ feedbackMessage }}
                         </div>
                     </div>
-
-                    <!-- 정답 입력 양식 -->
-                    <div class="max-w-xs mx-auto w-full space-y-2">
-                        <input ref="satInput"
-                               v-model="satInputText"
-                               @keyup.enter="submitSatAnswer"
-                               type="text"
-                               autocapitalize="off"
-                               autocorrect="off"
-                               spellcheck="false"
-                               placeholder="스펠링을 입력하세요"
-                               class="w-full h-11 px-3 bg-white border-2 border-pink-300 rounded-xl font-bold text-lg text-purple-900 text-center focus:outline-none focus:border-purple-500 shadow-inner">
-                        <button @click="submitSatAnswer" class="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold py-2.5 rounded-xl shadow-md text-sm transition">
-                            정답 제출하기 ✨
+            
+                    <!-- 시작하기 버튼 -->
+                    <button v-if="!isSatStageStarted" 
+                            @click="startSatStage" 
+                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 mt-6 flex items-center justify-center gap-2">
+                        <span>🚀 {{ satStage }}단계 시작하기</span>
+                    </button>
+                </div>
+            
+                <!-- [오른쪽 영역] 현 문제 출력 및 입력 폼 -->
+                <div class="md:col-span-7 bg-white p-6 rounded-2xl shadow-lg border border-purple-100 flex flex-col justify-center items-center relative min-h-[380px]">
+                    
+                    <!-- 대기 상태 표시 -->
+                    <div v-if="!isSatStageStarted" class="text-center text-gray-400 py-12">
+                        <div class="text-4xl mb-3">👈</div>
+                        <p class="font-bold text-gray-500">왼쪽 화면의 <strong>'시작하기'</strong> 버튼을 눌러주세요!</p>
+                    </div>
+            
+                    <!-- 문제 풀이 진행 영역 -->
+                    <div v-else class="w-full text-center">
+                        <!-- 진행률 표시 -->
+                        <div class="text-xs font-bold text-indigo-500 mb-2">
+                            QUESTION {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
+                        </div>
+            
+                        <!-- 음성 재생 버튼 -->
+                        <button @click="speak(satCurrentWord.english, 0.75)" class="mb-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-sm font-bold transition flex items-center gap-1 mx-auto">
+                            🔊 단어 소리 다시 듣기
                         </button>
+            
+                        <!-- 1단계 힌트 표시 (가림 힌트) -->
+                        <div v-if="satStage === 1" class="text-3xl font-mono tracking-widest text-indigo-600 font-bold my-6 bg-indigo-50/50 py-4 rounded-xl border border-indigo-100">
+                            {{ satHintText }}
+                        </div>
+            
+                        <!-- 2단계 / 3단계 사운드 아이콘 힌트 -->
+                        <div v-else class="my-6 py-6 bg-purple-50/50 rounded-xl border border-purple-100 flex justify-center items-center">
+                            <span class="text-5xl animate-bounce">🎧</span>
+                        </div>
+            
+                        <!-- 한글 뜻 제공 -->
+                        <div class="text-xl font-bold text-gray-800 mb-6">
+                            뜻: {{ satCurrentWord?.meaning }}
+                        </div>
+            
+                        <!-- 정답 입력 폼 -->
+                        <div class="max-w-md mx-auto">
+                            <input ref="satInput" 
+                                   v-model="satInputText" 
+                                   @keydown.enter="submitSatAnswer" 
+                                   type="text" 
+                                   placeholder="정답 영단어를 입력하세요..." 
+                                   class="w-full px-5 py-3.5 text-center text-xl font-bold border-2 border-indigo-300 rounded-xl focus:outline-none focus:border-indigo-600 shadow-inner" />
+                            
+                            <button @click="submitSatAnswer" class="w-full mt-3 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition shadow">
+                                제출하기 (Enter)
+                            </button>
+                        </div>
                     </div>
                 </div>
+            
             </div>
 
             <!-- ---------------------------------------------------- -->
