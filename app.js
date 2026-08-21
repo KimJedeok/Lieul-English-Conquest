@@ -1302,7 +1302,7 @@ createApp({
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
-            nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
+            nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge,
             isSatStageStarted, startSatStage,
             playTypingSound,
             startSatStage3Only,
