@@ -56,11 +56,12 @@ createApp({
                     osc.start();
                     osc.stop(ctx.currentTime + 0.3);
                 } else if (type === 'typing') {
-                    osc.frequency.setValueAtTime(400, ctx.currentTime);
-                    gain.gain.setValueAtTime(0.02, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                    osc.type = 'triangle'; // 톡톡 튀는 키보드 느낌의 파형 설정
+                    osc.frequency.setValueAtTime(600, ctx.currentTime); // 음높이 조정 (400 -> 600Hz)
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime); // 볼륨 대폭 상향 (0.02 -> 0.08)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
                     osc.start();
-                    osc.stop(ctx.currentTime + 0.05);
+                    osc.stop(ctx.currentTime + 0.08);
                 }
             } catch (e) {}
         };
