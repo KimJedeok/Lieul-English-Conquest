@@ -164,7 +164,15 @@ createApp({
                 focusInput();
                 
                 if (satCurrentWord.value) {
-                    speak(satCurrentWord.value.english, 0.75);
+                    satHintText.value = generateSatHint(satCurrentWord.value.english);
+                    speak(satCurrentWord.value.english, 0.75); // 시작 버튼 클릭 시 첫 단어 발음 재생
+                    
+                    if (satStage.value === 3) {
+                        startSatTimer();
+                    }
+                }if (satCurrentWord.value) {
+                    satHintText.value = generateSatHint(satCurrentWord.value.english);
+                    speak(satCurrentWord.value.english, 0.75); // 시작 버튼 클릭 시 첫 단어 발음 재생
                     
                     if (satStage.value === 3) {
                         startSatTimer();
@@ -173,6 +181,55 @@ createApp({
             });
         };
 
+        // 2. 다음 문제 이동 및 단계 전환 함수
+        const nextSatQuestion = (isCorrect) => {
+            stopSatTimer();
+            if (isCorrect) {
+                satCorrectCount.value++;
+            }
+        
+            satWordIndex.value++;
+            satInputText.value = '';
+        
+            // 1단계 종료 -> 2단계 시작 대기 화면으로 전환
+            if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
+                satStage.value = 2;
+                satWordIndex.value = 0;
+                satQuizList.value = getWeakWords(15);
+                isSatStageStarted.value = false;
+                return; // ★ 시작 버튼 누르기 전 음성 재생 방지
+            } 
+            // 2단계 종료 -> 3단계 시작 대기 화면으로 전환
+            else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
+                satStage.value = 3;
+                satWordIndex.value = 0;
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+                isSatStageStarted.value = false;
+                return; // ★ 시작 버튼 누르기 전 음성 재생 방지
+            } 
+            // 3단계 종료 -> 학습 완료
+            else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
+                isReplayingDay.value = false;
+                isDayCompleted.value = true;
+                if (!satCompletedWeeks.value.includes(currentWeek.value)) {
+                    satCompletedWeeks.value.push(currentWeek.value);
+                }
+                playCorrectSound();
+                return;
+            }
+        
+            focusInput();
+            
+            // 같은 단계 내 다음 문제 진행 시 발음 재생
+            if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
+                speak(satCurrentWord.value.english, 0.75);
+                if (satStage.value === 3) {
+                    startSatTimer();
+                }
+            }
+        };
+        
         const wordStats = ref({});
         const isReplayingDay = ref(false);
 
