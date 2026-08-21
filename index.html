@@ -384,11 +384,13 @@
                         <!-- 정답 입력 양식 -->
                         <div class="max-w-xs mx-auto space-y-2">
                             <input ref="satInput" 
+                                   type="text"
+                                   name="quiz_answer_no_autofill"
+                                   id="quiz_answer_no_autofill"
                                    v-model="satInputText" 
                                    :readonly="isInputLocked"
                                    @input="playTypingSound"
                                    @keyup.enter="submitSatAnswer" 
-                                   type="text" 
                                    autocomplete="one-time-code"
                                    autocapitalize="off"
                                    autocorrect="off"
