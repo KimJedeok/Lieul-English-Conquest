@@ -1059,11 +1059,15 @@ createApp({
                 .join(' ');
         };
 
+        // 입력 잠금 플래그
+        const isInputLocked = ref(false);
+        
         const startSaturdayReview = () => {
             stopSatTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             stage3Active.value = false;
+            isInputLocked.value = false;
 
             // 해당 주차의 토요일 전체 단어 목록 불러오기
             const weekWords = getWords(currentWeek.value, 'Sat');
@@ -1183,6 +1187,7 @@ createApp({
 
         const restartSaturdayChallenge = () => {
             stopSatTimer();
+            isInputLocked.value = false;
         
             // 1. 현재 주차의 토요일 완료 기록 해제
             satCompletedWeeks.value = satCompletedWeeks.value.filter(
