@@ -1215,8 +1215,6 @@ createApp({
         
             focusInput();
         };
-
-        const isInputLocked = ref(false);
         
         const submitSatAnswer = () => {
             // 1. 이미 입력폼이 잠겨 있거나 피드백 중이면 동작 방지
