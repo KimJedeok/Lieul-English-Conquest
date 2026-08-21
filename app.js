@@ -155,15 +155,22 @@ createApp({
 
         const startSatStage = () => {
             isSatStageStarted.value = true;
-            satTotalQuestions.value = 15; // 1, 2단계 15문제
-            focusInput();
-            if (satCurrentWord.value) {
-                speak(satCurrentWord.value.english, 0.75);
-                if (satStage.value === 3) {
-                    satTotalQuestions.value = 25;  // 3단계 25문제                   
-                    startSatTimer();
+            
+            // 1. 단계별 전체 문제 수 설정 (1·2단계 15문제 / 3단계 25문제)
+            satTotalQuestions.value = satStage.value === 3 ? 25 : 15;
+        
+            // 2. DOM이 업데이트된 후 포커스 및 음성/타이머 처리
+            nextTick(() => {
+                focusInput();
+                
+                if (satCurrentWord.value) {
+                    speak(satCurrentWord.value.english, 0.75);
+                    
+                    if (satStage.value === 3) {
+                        startSatTimer();
+                    }
                 }
-            }
+            });
         };
 
         const wordStats = ref({});
