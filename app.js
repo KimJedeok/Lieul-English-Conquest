@@ -1062,6 +1062,17 @@ createApp({
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             stage3Active.value = false;
+
+            // 이미 완료된 주차인지 검사
+            const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
+        
+            if (isCompleted) {
+                // 이미 완료했다면 즉시 결과 화면(완료 상태)으로 진입
+                isDayCompleted.value = true;
+                return;
+            }
+        
+            // 미완료 상태일 때만 학습 진행          
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
