@@ -1106,7 +1106,7 @@ createApp({
         
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
-                speak(satCurrentWord.value.english, 0.75);
+                // speak(satCurrentWord.value.english, 0.75);
             }
 
             focusInput();
@@ -1208,7 +1208,7 @@ createApp({
             // 4. 첫 단어 힌트 세팅 및 음성 재생
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
-                speak(satCurrentWord.value.english, 0.75);
+                // speak(satCurrentWord.value.english, 0.75);
             }
         
             focusInput();
