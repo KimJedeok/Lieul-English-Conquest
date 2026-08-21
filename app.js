@@ -222,23 +222,29 @@ createApp({
 
         onMounted(async () => {
             try {
+                // 1. localStorage 데이터 복원
                 const savedWords = localStorage.getItem('vocab_all_words');
                 const savedLearned = localStorage.getItem('vocab_learned_ids');
                 const savedSatCompleted = localStorage.getItem('vocab_sat_completed');
                 const savedDateVal = localStorage.getItem('vocab_saved_date');
                 const savedStats = localStorage.getItem('vocab_word_stats');
-
+        
                 if (savedWords) allWords.value = JSON.parse(savedWords);
                 if (savedLearned) learnedWordIDs.value = JSON.parse(savedLearned);
                 if (savedSatCompleted) satCompletedWeeks.value = JSON.parse(savedSatCompleted);
                 if (savedDateVal) savedDate.value = savedDateVal;
                 if (savedStats) wordStats.value = JSON.parse(savedStats);
-
-                imageMap.value = await safeLoadImagesFromIDB();
+        
+                // 2. db.js의 loadImagesFromIDB 함수 호출 및 복원
+                const loadedImages = await loadImagesFromIDB();
+                if (loadedImages) {
+                    imageMap.value = loadedImages;
+                }
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
             }
-
+        
+            // 3. 캔버스 리사이즈 이벤트 등록
             window.addEventListener('resize', () => {
                 if (stage3Active.value && currentStage3Item.value?.type === 'pencil') {
                     resizeCanvas();
