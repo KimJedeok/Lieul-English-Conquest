@@ -240,11 +240,14 @@
 
                     <!-- 토요일 전용 하단 버튼 -->
                     <div class="flex gap-2 pt-2 border-t border-pink-100 flex-shrink-0">
-                        <button @click="startLesson(currentWeek, 'Sat')" class="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">
-                            🔄 토요일 챌린지 다시 도전
+                        <button @click="startLesson(currentWeek, 'Sat')" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                            🔄 토요일 챌린지 다시도전
                         </button>
-                        <button @click="activeScreen = 'home'" class="flex-1 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition">
-                            🏠 홈으로 돌아가기 💖
+                        <button @click="startSatStage3Only" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
+                            ⚡ 3단계부터 다시
+                        </button>
+                        <button @click="advanceFromSat" class="flex-[1.2] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
+                            <span>다음 학습으로</span> 💖
                         </button>
                     </div>
                 </template>
@@ -312,17 +315,17 @@
                             {{ satStageTitle }}
                         </div>
             
-                        <!-- 단계별 상세 안내 -->
-                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
-                            <h4 class="font-bold text-gray-700 text-sm mb-1">💡 학습 안내</h4>
-                            <p v-if="satStage === 1" class="text-xs text-gray-600 leading-relaxed">
-                                주간 취약 단어를 집중적으로 복습합니다.<br>알파벳이 30~50% 무작위로 가려진 힌트를 보고 단어를 완성하세요!
+                        <!-- 단계별 상세 설명 -->
+                        <div class="bg-purple-50/60 p-3 rounded-xl border border-purple-100 space-y-1">
+                            <h4 class="font-extrabold text-purple-900 text-xs flex items-center gap-1">💡 학습 안내</h4>
+                            <p v-if="satStage === 1" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
+                                주간 취약 단어를 집중 복습합니다.<br>알파벳이 무작위(30~50%)로 가려진 힌트를 보고 단어를 완성해보세요!
                             </p>
-                            <p v-else-if="satStage === 2" class="text-xs text-gray-600 leading-relaxed">
-                                텍스트 힌트가 지워집니다.<br>오직 재생되는 소리만 듣고 올바른 철자를 작성해 보세요!
+                            <p v-else-if="satStage === 2" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
+                                텍스트 힌트가 지워집니다.<br>오직 단어 소리와 뜻만 보고 정확한 스펠링을 작성해보세요!
                             </p>
-                            <p v-else class="text-xs text-gray-600 leading-relaxed">
-                                최종 스피드 테스트입니다.<br>문제당 <b>5초 제한시간</b> 내에 소리를 듣고 빠르게 답을 입력하세요!
+                            <p v-else class="text-[11px] text-purple-700 leading-relaxed font-semibold">
+                                최종 스피드 테스트입니다.<br>문제당 <b>10초 제한시간</b> 내에 소리를 듣고 빠르게 답을 입력하세요!
                             </p>
                         </div>
             
@@ -384,17 +387,22 @@
                             뜻: {{ satCurrentWord?.meaning }}
                         </div>
             
-                        <!-- 정답 입력 폼 -->
-                        <div class="max-w-md mx-auto">
+                        <!-- 정답 입력 양식 -->
+                        <div class="max-w-xs mx-auto space-y-2">
                             <input ref="satInput" 
                                    v-model="satInputText" 
-                                   @keydown.enter="submitSatAnswer" 
+                                   @input="playTypeSound"
+                                   @keyup.enter="submitSatAnswer" 
                                    type="text" 
-                                   placeholder="정답 영단어를 입력하세요..." 
-                                   class="w-full px-5 py-3.5 text-center text-xl font-bold border-2 border-indigo-300 rounded-xl focus:outline-none focus:border-indigo-600 shadow-inner" />
+                                   autocapitalize="off"
+                                   autocorrect="off"
+                                   spellcheck="false"
+                                   autocomplete="off"
+                                   placeholder="스펠링을 입력하세요" 
+                                   class="w-full h-11 px-3 bg-white border-2 border-pink-300 rounded-xl font-bold text-lg text-purple-900 text-center focus:outline-none focus:border-purple-500 shadow-inner">
                             
-                            <button @click="submitSatAnswer" class="w-full mt-3 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition shadow">
-                                제출하기 (Enter)
+                            <button @click="submitSatAnswer" class="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold py-2.5 rounded-xl shadow-md text-sm transition">
+                                정답 제출하기 ✨
                             </button>
                         </div>
                     </div>
