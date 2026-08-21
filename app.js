@@ -117,10 +117,10 @@ createApp({
         const isFeedbackCorrect = ref(true);
         const satComboCount = ref(0);
         const satInputText = ref('');
-        const satTimer = ref(5);
+        const satTimer = ref(10);
         let satTimerInterval = null;
 
-        const satTotalQuestions = computed(() => satQuizList.value.length);
+        const satTotalQuestions = ref(55);
 
         const stopSatTimer = () => {
             if (satTimerInterval) {
@@ -132,7 +132,7 @@ createApp({
         const startSatTimer = () => {
             stopSatTimer();
             if (satStage.value !== 3) return;
-            satTimer.value = 5;
+            satTimer.value = 10;
             satTimerInterval = setInterval(() => {
                 satTimer.value--;
                 if (satTimer.value <= 0) {
@@ -1043,6 +1043,7 @@ createApp({
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
+            satTotalQuestions.value = 55; // <- 이 줄 추가 (1단계 15 + 2단계 15 + 3단계 25 = 55문제)
             satInputText.value = '';
             feedbackMessage.value = '';
             isFeedbackCorrect.value = true;
@@ -1063,6 +1064,18 @@ createApp({
            if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english); // 힌트 생성
                 speak(satCurrentWord.value.english, 0.75);
+            }
+        };
+        
+        // 다음 학습(다음 주차 월요일)으로 이동
+        const advanceFromSat = () => {
+            stopSatTimer();
+            const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
+            if (weekIdx < availableWeeks.value.length - 1) {
+                currentWeek.value = availableWeeks.value[weekIdx + 1];
+                changeDay('Mon');
+            } else {
+                activeScreen.value = 'home';
             }
         };
 
@@ -1203,7 +1216,8 @@ createApp({
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
-            isSatStageStarted, startSatStage
+            isSatStageStarted, startSatStage,
+            playTypingSound, startSatStage3Only, advanceFromSat
         };
     }
 }).mount('#app');
