@@ -1044,40 +1044,24 @@ createApp({
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
-            satTotalQuestions.value = 55; // <- 이 줄 추가 (1단계 15 + 2단계 15 + 3단계 25 = 55문제)
+            satTotalQuestions.value = 55;
             satInputText.value = '';
             feedbackMessage.value = '';
             isFeedbackCorrect.value = true;
-            isSatStageStarted.value = false; // 시작 버튼 대기 상태로 초기화
+            isSatStageStarted.value = false;
             
             satQuizList.value = getWeakWords(15);
            
-           if (satQuizList.value.length === 0) {
+            if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
         
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
-            }
-
-            focusInput(); // 진입 즉시 입력창 커서 이동
-
-           if (satCurrentWord.value) {
-                satHintText.value = generateSatHint(satCurrentWord.value.english); // 힌트 생성
                 speak(satCurrentWord.value.english, 0.75);
             }
-        };
-        
-        // 다음 학습(다음 주차 월요일)으로 이동
-        const advanceFromSat = () => {
-            stopSatTimer();
-            const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
-            if (weekIdx < availableWeeks.value.length - 1) {
-                currentWeek.value = availableWeeks.value[weekIdx + 1];
-                changeDay('Mon');
-            } else {
-                activeScreen.value = 'home';
-            }
+
+            focusInput();
         };
 
         const satStageTitle = computed(() => {
@@ -1114,26 +1098,18 @@ createApp({
             satWordIndex.value++;
             satInputText.value = '';
 
-            const checkStageChange = (targetStage, newList) => {
-                satStage.value = targetStage;
-                satWordIndex.value = 0;
-                satQuizList.value = newList;
-                isSatStageStarted.value = false; // 새로운 단계 진입 시 시작 버튼 대기
-            };
-
-            // 1단계 -> 2단계 전환
             if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 2;
                 satWordIndex.value = 0;
                 satQuizList.value = getWeakWords(15);
+                isSatStageStarted.value = false;
             } 
-            // 2단계 -> 3단계 전환
             else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+                isSatStageStarted.value = false;
             } 
-            // 3단계 완료
             else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
                 isReplayingDay.value = false;
                 isDayCompleted.value = true;
@@ -1144,10 +1120,10 @@ createApp({
                 return;
             }
 
-            focusInput(); // 다음 문제 전환 시 포커스 유지
+            focusInput();
             
             if (satCurrentWord.value) {
-                satHintText.value = generateSatHint(satCurrentWord.value.english); // 힌트 생성
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
                 speak(satCurrentWord.value.english, 0.75);
                 if (satStage.value === 3) {
                     startSatTimer();
@@ -1155,11 +1131,9 @@ createApp({
             }
         };
 
-        // 토요일 주말 챌린지 정답 제출 함수
         const submitSatAnswer = () => {
             if (feedbackMessage.value) return; 
             
-            // 입력창이 비어있는 경우 제출 중단 및 포커스 유지
             if (!satInputText.value || !satInputText.value.trim()) {
                 focusInput();
                 return;
@@ -1198,7 +1172,7 @@ createApp({
             }, 1500);
         };
 
-        // [토요일 3단계만 바로 재도전]
+        // [신규 기능 1] 토요일 3단계만 바로 재도전
         const startSatStage3Only = () => {
             stopSatTimer();
             activeScreen.value = 'learning';
@@ -1217,7 +1191,7 @@ createApp({
             focusInput();
         };
 
-        // [다음 학습으로 이동]
+        // [신규 기능 2] 다음 학습으로 이동
         const advanceFromSat = () => {
             stopSatTimer();
             const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
@@ -1229,7 +1203,7 @@ createApp({
             }
         };
 
-return {
+        return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
             currentIndex, currentMode, practiceText, practiceCount, quizText, isDayCompleted,
@@ -1250,7 +1224,202 @@ return {
             nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
             isSatStageStarted, startSatStage,
             
-            // 추가된 기능들
+            playTypingSound,
+            startSatStage3Only,
+            advanceFromSat
+        };
+    }
+}).mount('#app');// ==================== [ 토요일 주말 복습 로직 ] ====================
+        const startSaturdayReview = () => {
+            stopSatTimer();
+            activeScreen.value = 'learning';
+            isReplayingDay.value = false;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
+            satStage.value = 1;
+            satWordIndex.value = 0;
+            satCorrectCount.value = 0;
+            satComboCount.value = 0;
+            satTotalQuestions.value = 55;
+            satInputText.value = '';
+            feedbackMessage.value = '';
+            isFeedbackCorrect.value = true;
+            isSatStageStarted.value = false;
+            
+            satQuizList.value = getWeakWords(15);
+           
+            if (satQuizList.value.length === 0) {
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
+            }
+        
+            if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
+                speak(satCurrentWord.value.english, 0.75);
+            }
+
+            focusInput();
+        };
+
+        const satStageTitle = computed(() => {
+            if (satStage.value === 1) return '🎯 1단계: 취약 단어 집중 공략 (힌트 제공)';
+            if (satStage.value === 2) return '⚡ 2단계: 블라인드 사운드 리콜 (사운드 집중)';
+            return '🔥 3단계: 5초 스피드 타임어택 (스피드 게임)';
+        });
+
+        const satStageThemeClass = computed(() => {
+            if (satStage.value === 1) return 'bg-pink-500 text-white';
+            if (satStage.value === 2) return 'bg-indigo-600 text-white';
+            return 'bg-rose-600 text-white animate-pulse';
+        });
+
+        const getMaskedSpelling20 = (wordStr) => {
+            if (!wordStr) return '';
+            const len = wordStr.length;
+            const hideCount = Math.max(1, Math.round(len * 0.25));
+            const chars = wordStr.split('');
+            
+            for (let i = 0; i < hideCount; i++) {
+                const targetIdx = Math.floor(len / 2) + i;
+                if (targetIdx < len) chars[targetIdx] = '?';
+            }
+            return chars.join(' ');
+        };
+
+        const nextSatQuestion = (isCorrect) => {
+            stopSatTimer();
+            if (isCorrect) {
+                satCorrectCount.value++;
+            }
+
+            satWordIndex.value++;
+            satInputText.value = '';
+
+            if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
+                satStage.value = 2;
+                satWordIndex.value = 0;
+                satQuizList.value = getWeakWords(15);
+                isSatStageStarted.value = false;
+            } 
+            else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
+                satStage.value = 3;
+                satWordIndex.value = 0;
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+                isSatStageStarted.value = false;
+            } 
+            else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
+                isReplayingDay.value = false;
+                isDayCompleted.value = true;
+                if (!satCompletedWeeks.value.includes(currentWeek.value)) {
+                    satCompletedWeeks.value.push(currentWeek.value);
+                }
+                playCorrectSound();
+                return;
+            }
+
+            focusInput();
+            
+            if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
+                speak(satCurrentWord.value.english, 0.75);
+                if (satStage.value === 3) {
+                    startSatTimer();
+                }
+            }
+        };
+
+        const submitSatAnswer = () => {
+            if (feedbackMessage.value) return; 
+            
+            if (!satInputText.value || !satInputText.value.trim()) {
+                focusInput();
+                return;
+            }
+            
+            if (!satCurrentWord.value) return;
+
+            const userInput = satInputText.value.trim().toLowerCase();
+            const targetWord = satCurrentWord.value.english.toLowerCase();
+            const isCorrect = (userInput === targetWord);
+
+            isFeedbackCorrect.value = isCorrect;
+            if (isCorrect) {
+                satComboCount.value++;
+                const positiveMsgs = [
+                    '✨ 완벽해요! 완벽하게 기억하셨네요!',
+                    '🔥 훌륭해요! 거침없는 정답 행진!',
+                    '🌸 대단합니다! 실력이 대폭 상승 중!',
+                    '💖 정답! 이 기세로 완벽 마감해봅시다!'
+                ];
+                feedbackMessage.value = satComboCount.value >= 3 
+                    ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
+                    : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
+                playCorrectSound();
+            } else {
+                satComboCount.value = 0;
+                feedbackMessage.value = `아쉽네요! 정답은 '${satCurrentWord.value.english}' 입니다. 😢`;
+                playErrorSound();
+            }
+
+            satInputText.value = '';
+
+            setTimeout(() => {
+                feedbackMessage.value = '';
+                nextSatQuestion(isCorrect);
+            }, 1500);
+        };
+
+        // [신규 기능 1] 토요일 3단계만 바로 재도전
+        const startSatStage3Only = () => {
+            stopSatTimer();
+            activeScreen.value = 'learning';
+            isReplayingDay.value = false;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
+            satStage.value = 3;
+            satWordIndex.value = 0;
+            satCorrectCount.value = 0;
+            satComboCount.value = 0;
+            satTotalQuestions.value = 25;
+            satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+            isSatStageStarted.value = false;
+            satInputText.value = '';
+            feedbackMessage.value = '';
+            focusInput();
+        };
+
+        // [신규 기능 2] 다음 학습으로 이동
+        const advanceFromSat = () => {
+            stopSatTimer();
+            const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
+            if (weekIdx < availableWeeks.value.length - 1) {
+                currentWeek.value = availableWeeks.value[weekIdx + 1];
+                changeDay('Mon');
+            } else {
+                activeScreen.value = 'home';
+            }
+        };
+
+        return {
+            activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
+            wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
+            currentIndex, currentMode, practiceText, practiceCount, quizText, isDayCompleted,
+            quizSubStage, quizPart1Count, quizPart2Count, quizBlanks, soundBlindFailCount, hintLevel,
+            stage3Active, stage3List, stage3Index, stage3AnswerRevealed, currentStage3Item,
+            practiceInput, quizInput, satInput, canvasRef, fileInput, showConfirmModal,
+            openConfirmModal, confirmLoadFile, cancelLoadFile, handleFileUpload,
+            availableWeeks, getWords, isLearned, isWeekUnlocked, isWeekCompleted,
+            isDayUnlocked, isDayDone, overallProgressRate, getWeekProgressRate, todayLesson, getDayBtnClass,
+            currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
+            resetAllProgress, resetWeekProgress, resetDayProgressFromUI, isReplayingDay, restartStage1Only,
+            isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
+            clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
+            startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
+            getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
+            satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
+            satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
+            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
+            isSatStageStarted, startSatStage,
+            
             playTypingSound,
             startSatStage3Only,
             advanceFromSat
