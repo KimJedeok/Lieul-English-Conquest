@@ -350,14 +350,14 @@ createApp({
                 alert('❌ 단어장에 유효한 단어 데이터가 없습니다.');
                 return;
             }
-
+        
             const parsed = list.map((item, idx) => {
                 const norm = {};
                 Object.keys(item).forEach(k => {
                     const cleanKey = k.toLowerCase().replace(/_/g, '').replace(/ /g, '');
                     norm[cleanKey] = item[k];
                 });
-
+        
                 const getVal = (keys) => {
                     for (let k of keys) {
                         if (norm[k] !== undefined && norm[k] !== null && String(norm[k]).trim() !== '') {
@@ -366,7 +366,7 @@ createApp({
                     }
                     return '';
                 };
-
+        
                 return {
                     id: idx + 1,
                     week: parseInt(getVal(['week', 'w'])) || 1,
@@ -375,24 +375,25 @@ createApp({
                     meaning: getVal(['meaning', 'korean', 'kor', 'trans', 'def', 'mean']) || '뜻 없음',
                     example: getVal(['example', 'examplesentence', 'sentence', 'ex']),
                     exampleMeaning: getVal(['examplemeaning', 'sentencemeaning', 'examplekorean', 'exmeaning']),
-                    imageFileName: getVal(['customimageurl', 'imageurl', 'image', 'img']) || null
+                    // 👇 imagefilename, filename 키를 찾아내도록 수정된 핵심 라인
+                    imageFileName: getVal(['imagefilename', 'filename', 'customimageurl', 'imageurl', 'image', 'img', 'file', 'photo', 'picture']) || null
                 };
             });
-
+        
             allWords.value = parsed;
             learnedWordIDs.value = [];
             satCompletedWeeks.value = [];
             const now = new Date();
             const formattedDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             savedDate.value = formattedDate;
-
+        
             try {
                 localStorage.setItem('vocab_all_words', JSON.stringify(parsed));
                 localStorage.setItem('vocab_learned_ids', JSON.stringify([]));
                 localStorage.setItem('vocab_sat_completed', JSON.stringify([]));
                 localStorage.setItem('vocab_saved_date', formattedDate);
             } catch (e) {}
-
+        
             alert(`✅ 총 ${parsed.length}개 단어가 저장되었습니다! 🌸`);
         };
 
@@ -956,23 +957,32 @@ createApp({
 
         const getWordImage = (word) => {
             if (!word) return '';
-            if (word.imageFileName) {
-                const lowerSpec = word.imageFileName.toLowerCase().trim();
+            if (typeof word === 'string') {
+                const lower = word.toLowerCase().trim();
+                if (imageMap.value && imageMap.value[lower]) return imageMap.value[lower];
+                return `https://loremflickr.com/500/400/${encodeURIComponent(lower)},illustration,cartoon/all`;
+            }
+        
+            // 👇 대소문자 변수 차이 흡수 안전장치
+            const imgFile = word.imageFileName || word.imagefilename || word.image;
+        
+            if (imgFile) {
+                const lowerSpec = String(imgFile).toLowerCase().trim();
                 const specWithoutPath = lowerSpec.split('/').pop();
                 const specWithoutExt = specWithoutPath.substring(0, specWithoutPath.lastIndexOf('.')) || specWithoutPath;
-
+        
                 if (imageMap.value[lowerSpec]) return imageMap.value[lowerSpec];
                 if (imageMap.value[specWithoutPath]) return imageMap.value[specWithoutPath];
                 if (imageMap.value[specWithoutExt]) return imageMap.value[specWithoutExt];
-                if (word.imageFileName.startsWith('http')) return word.imageFileName;
+                if (String(imgFile).startsWith('http')) return imgFile;
             }
-
-            if (imageMap.value) {
-                const engLower = word.english.toLowerCase().trim();
+        
+            if (imageMap.value && word.english) {
+                const engLower = String(word.english).toLowerCase().trim();
                 if (imageMap.value[engLower]) return imageMap.value[engLower];
             }
-
-            return `https://loremflickr.com/500/400/${encodeURIComponent(word.english.toLowerCase())},illustration,cartoon/all`;
+        
+            return `https://loremflickr.com/500/400/${encodeURIComponent(String(word.english || '').toLowerCase())},illustration,cartoon/all`;
         };
 
         const handleImgError = (e) => {
