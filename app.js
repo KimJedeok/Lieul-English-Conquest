@@ -1198,6 +1198,37 @@ createApp({
             }, 1500);
         };
 
+        // [토요일 3단계만 바로 재도전]
+        const startSatStage3Only = () => {
+            stopSatTimer();
+            activeScreen.value = 'learning';
+            isReplayingDay.value = false;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
+            satStage.value = 3;
+            satWordIndex.value = 0;
+            satCorrectCount.value = 0;
+            satComboCount.value = 0;
+            satTotalQuestions.value = 25;
+            satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+            isSatStageStarted.value = false;
+            satInputText.value = '';
+            feedbackMessage.value = '';
+            focusInput();
+        };
+
+        // [다음 학습으로 이동]
+        const advanceFromSat = () => {
+            stopSatTimer();
+            const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
+            if (weekIdx < availableWeeks.value.length - 1) {
+                currentWeek.value = availableWeeks.value[weekIdx + 1];
+                changeDay('Mon');
+            } else {
+                activeScreen.value = 'home';
+            }
+        };
+
 return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
