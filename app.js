@@ -2,6 +2,19 @@ const { createApp, ref, computed, watch, nextTick, onMounted, onUnmounted } = Vu
 
 createApp({
     setup() {
+        // [오디오 컨텍스트 싱글톤 관리 - 메모리 누수 방지]
+        let audioCtx = null;
+        const getAudioContext = () => {
+            if (!audioCtx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) audioCtx = new AudioCtx();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        };
+
         // ==================== [ 유틸리티 함수: 음성 및 효과음 ] ====================
         const speak = (text, rate = 0.75) => {
             if (!('speechSynthesis' in window) || !text) return;
@@ -31,9 +44,9 @@ createApp({
 
         const playSound = (type) => {
             try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const ctx = new AudioCtx();
+                const ctx = getAudioContext();
+                if (!ctx) return;
+
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
@@ -71,23 +84,15 @@ createApp({
         const playCorrectSound = () => playSound('correct');
 
         const safeLoadImagesFromIDB = async () => {
-            if (typeof window.loadImagesFromIDB === 'function') {
-                return await window.loadImagesFromIDB();
+            if (typeof loadImagesFromIDB === 'function') {
+                return await loadImagesFromIDB();
             }
             return {};
         };
 
         const safeSaveImagesToIDB = async (imgs) => {
-            if (typeof window.saveImagesToIDB !== 'function') {
-                console.warn('saveImagesToIDB 함수가 정의되지 않았습니다.');
-                return false;
-            }
-            
-            try {
-                return await window.saveImagesToIDB(imgs);
-            } catch (error) {
-                console.error('IndexedDB 저장 중 오류 발생:', error);
-                throw error;
+            if (typeof saveImagesToIDB === 'function') {
+                await saveImagesToIDB(imgs);
             }
         };
 
@@ -103,17 +108,6 @@ createApp({
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
         const isSatStageStarted = ref(false);
-        
-        const startSatStage = () => {
-            isSatStageStarted.value = true;
-            focusInput();
-            if (satCurrentWord.value) {
-                speak(satCurrentWord.value.english, 0.75);
-                if (satStage.value === 3) {
-                    startSatTimer();
-                }
-            }
-        };
 
         // ==================== [ 토요일 복습 커스텀 상태 및 타이머 ] ====================
         const satStage = ref(1);
@@ -127,7 +121,6 @@ createApp({
         const satTimer = ref(10);
         let satTimerInterval = null;
 
-        // 👇 [수정 완료] timerDisplay 중복 선언 제거 후 computed만 적용
         const timerDisplay = computed(() => {
             return satTimer.value !== null && satTimer.value !== undefined ? `${satTimer.value}` : '';
         }); 
@@ -158,6 +151,17 @@ createApp({
                     }, 1500);
                 }
             }, 1000);
+        };
+
+        const startSatStage = () => {
+            isSatStageStarted.value = true;
+            focusInput();
+            if (satCurrentWord.value) {
+                speak(satCurrentWord.value.english, 0.75);
+                if (satStage.value === 3) {
+                    startSatTimer();
+                }
+            }
         };
 
         const wordStats = ref({});
@@ -228,40 +232,37 @@ createApp({
             }
         };
 
+        const handleResize = () => {
+            if (stage3Active.value && currentStage3Item.value?.type === 'pencil') {
+                resizeCanvas();
+            }
+        };
+
         onMounted(async () => {
             try {
-                // 1. localStorage 데이터 복원
                 const savedWords = localStorage.getItem('vocab_all_words');
                 const savedLearned = localStorage.getItem('vocab_learned_ids');
                 const savedSatCompleted = localStorage.getItem('vocab_sat_completed');
                 const savedDateVal = localStorage.getItem('vocab_saved_date');
                 const savedStats = localStorage.getItem('vocab_word_stats');
-        
+
                 if (savedWords) allWords.value = JSON.parse(savedWords);
                 if (savedLearned) learnedWordIDs.value = JSON.parse(savedLearned);
                 if (savedSatCompleted) satCompletedWeeks.value = JSON.parse(savedSatCompleted);
                 if (savedDateVal) savedDate.value = savedDateVal;
                 if (savedStats) wordStats.value = JSON.parse(savedStats);
-        
-                // 2. db.js의 loadImagesFromIDB 함수 호출 및 복원
-                const loadedImages = await loadImagesFromIDB();
-                if (loadedImages) {
-                    imageMap.value = loadedImages;
-                }
+
+                imageMap.value = await safeLoadImagesFromIDB();
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
             }
-        
-            // 3. 캔버스 리사이즈 이벤트 등록
-            window.addEventListener('resize', () => {
-                if (stage3Active.value && currentStage3Item.value?.type === 'pencil') {
-                    resizeCanvas();
-                }
-            });
+
+            window.addEventListener('resize', handleResize);
         });
 
         onUnmounted(() => {
             stopSatTimer();
+            window.removeEventListener('resize', handleResize);
         });
 
         watch(learnedWordIDs, (newVal) => {
@@ -389,7 +390,6 @@ createApp({
                     meaning: getVal(['meaning', 'korean', 'kor', 'trans', 'def', 'mean']) || '뜻 없음',
                     example: getVal(['example', 'examplesentence', 'sentence', 'ex']),
                     exampleMeaning: getVal(['examplemeaning', 'sentencemeaning', 'examplekorean', 'exmeaning']),
-                    // 👇 imagefilename, filename 키를 찾아내도록 수정된 핵심 라인
                     imageFileName: getVal(['imagefilename', 'filename', 'customimageurl', 'imageurl', 'image', 'img', 'file', 'photo', 'picture']) || null
                 };
             });
@@ -977,7 +977,6 @@ createApp({
                 return `https://loremflickr.com/500/400/${encodeURIComponent(lower)},illustration,cartoon/all`;
             }
         
-            // 👇 대소문자 변수 차이 흡수 안전장치
             const imgFile = word.imageFileName || word.imagefilename || word.image;
         
             if (imgFile) {
@@ -1245,7 +1244,6 @@ createApp({
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
             isSatStageStarted, startSatStage,
-            
             playTypingSound,
             startSatStage3Only,
             advanceFromSat
