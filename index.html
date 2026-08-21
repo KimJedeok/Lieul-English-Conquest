@@ -180,85 +180,122 @@
             </div>
 
             <!-- ---------------------------------------------------- -->
-            <!-- [CASE 1] 완주 성공 / 결과 화면 (토요일 & 평일 공통) -->
+            <!-- [CASE 1] 완주 성공 / 결과 화면 (토요일 & 평일 분리) -->
             <!-- ---------------------------------------------------- -->
-            <div v-if="isDayCompleted && !stage3Active && !isReplayingDay" class="bg-white p-4.5 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
-                <!-- 상단 영역 -->
-                <div class="flex justify-between items-center bg-gradient-to-r from-pink-100 to-purple-100 p-3.5 rounded-2xl border border-pink-200 flex-shrink-0">
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">🏆</span>
-                        <div>
-                            <h2 class="text-lg font-black text-purple-900">{{ selectedDay === 'Sat' ? '토요일 주말 복습 완료! 🎉' : '오늘 공부 완주 성공! 🎉' }}</h2>
-                            <p class="text-xs font-extrabold text-pink-500">학습한 단어의 결과예요 ✨</p>
+            <div v-if="isDayCompleted && !stage3Active && !isReplayingDay" class="bg-white p-4 rounded-2xl shadow-sm border-2 border-pink-100 flex-1 flex flex-col justify-between space-y-3 overflow-hidden">
+                
+                <!-- [CASE 1-A] 토요일 완주 전용 결과 화면 -->
+                <template v-if="selectedDay === 'Sat'">
+                    <!-- 토요일 상단 헤더 -->
+                    <div class="flex justify-between items-center bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 text-white p-3.5 rounded-2xl shadow-md flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🏆</span>
+                            <div>
+                                <h2 class="text-base font-black">토요일 주말 종합 챌린지 완료! 🎉</h2>
+                                <p class="text-xs text-pink-100 font-semibold">주간 학습 결과를 확인해보세요 ✨</p>
+                            </div>
                         </div>
                     </div>
-                    <button @click="resetDayProgressFromUI" class="bg-purple-200/80 hover:bg-purple-300 text-purple-800 font-extrabold px-3 py-1.5 rounded-xl text-xs transition border border-purple-300 flex-shrink-0">
-                        🔄 초기화
-                    </button>
-                </div>
 
-                <!-- 토요일 완주 피드백 화면 (80% 기준) -->
-                <div v-if="selectedDay === 'Sat'" class="text-center space-y-2 p-3.5 bg-gradient-to-b from-purple-50 to-pink-50 rounded-2xl border-2 border-pink-200 flex-shrink-0">
-                    <div class="text-2xl font-black text-purple-900">
-                        최종 점수: <span class="text-pink-600">{{ Math.round((satCorrectCount / satTotalQuestions) * 100) }}점</span>
-                        <span class="text-xs text-purple-500 font-bold ml-1">({{ satCorrectCount }} / {{ satTotalQuestions }} 문제 맞힘)</span>
+                    <!-- 토요일 점수 및 판정 카드 -->
+                    <div class="text-center space-y-3 p-4 bg-gradient-to-b from-purple-50 to-pink-50 rounded-2xl border-2 border-pink-200 flex-shrink-0 shadow-sm">
+                        <div class="text-2xl font-black text-purple-900">
+                            최종 점수: <span class="text-pink-600 text-3xl">{{ Math.round((satCorrectCount / satTotalQuestions) * 100) }}점</span>
+                            <div class="text-xs text-purple-500 font-bold mt-1">({{ satCorrectCount }} / {{ satTotalQuestions }} 문제 맞힘)</div>
+                        </div>
+
+                        <!-- 80% 이상 합격 -->
+                        <div v-if="(satCorrectCount / satTotalQuestions) >= 0.8" class="space-y-1 bg-white/80 p-3 rounded-xl border border-pink-200">
+                            <div class="text-2xl">🎉 👑 🏅</div>
+                            <h3 class="text-sm font-black text-purple-900">주말 챌린지 완벽 성공!</h3>
+                            <p class="text-xs font-bold text-pink-500">한 주 동안 배운 단어들을 멋지게 마스터했어요! ✨</p>
+                        </div>
+
+                        <!-- 80% 미만 재도전 -->
+                        <div v-else class="space-y-1 bg-white/80 p-3 rounded-xl border border-purple-200">
+                            <div class="text-2xl">💪 🌸 🌱</div>
+                            <h3 class="text-sm font-black text-purple-800">아쉬워요! 조금만 더 하면 돼요!</h3>
+                            <p class="text-xs font-bold text-purple-600 leading-relaxed">
+                                목표 80점까지 딱 <span class="text-pink-600 font-black">{{ Math.ceil(satTotalQuestions * 0.8) - satCorrectCount }}문제</span> 남았어요.<br>
+                                다시 한번 도전해 볼까요?
+                            </p>
+                        </div>
                     </div>
 
-                    <!-- 80% 이상 합격 -->
-                    <div v-if="(satCorrectCount / satTotalQuestions) >= 0.8" class="space-y-0.5">
-                        <div class="text-xl">🎉 👑 🏅</div>
-                        <h3 class="text-base font-black text-purple-900">주말 챌린지 완벽 성공!</h3>
-                        <p class="text-xs font-bold text-pink-500">한 주 동안 배운 25개 단어를 멋지게 마스터했어요! ✨</p>
-                    </div>
-
-                    <!-- 80% 미만 재도전 -->
-                    <div v-else class="space-y-0.5">
-                        <div class="text-xl">💪 🌸 🌱</div>
-                        <h3 class="text-base font-black text-purple-800">아쉬워요! 조금만 더 하면 돼요!</h3>
-                        <p class="text-xs font-bold text-purple-600 leading-relaxed">
-                            목표 80점까지 딱 <span class="text-pink-600 font-black">{{ Math.ceil(satTotalQuestions * 0.8) - satCorrectCount }}문제</span> 남았어요.<br>
-                            다시 한번 도전해 볼까요?
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 2열 단어 리스트 -->
-                <div class="flex-1 overflow-y-auto pr-1">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div v-for="w in currentWordList" :key="w.id" class="flex justify-between items-center bg-pink-50/60 border-2 border-pink-100 p-3.5 rounded-2xl hover:bg-white transition shadow-sm">
-                            <div class="min-w-0 flex-1 mr-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-black text-slate-800 text-xl md:text-2xl truncate tracking-wide">{{ w.english }}</span>
-                                    <button @click="speak(w.english, 0.7)" class="text-pink-500 hover:text-pink-700 text-lg flex-shrink-0 active:scale-90 transition">🔊</button>
+                    <!-- 토요일 학습 단어 목록 (스크롤 가능 영역) -->
+                    <div class="flex-1 overflow-y-auto pr-1 min-h-0">
+                        <h4 class="text-xs font-extrabold text-purple-800 mb-2 flex items-center gap-1">📖 주간 복습 단어</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div v-for="w in currentWordList" :key="w.id" class="flex justify-between items-center bg-pink-50/60 border border-pink-100 p-2.5 rounded-xl">
+                                <div class="min-w-0 flex-1 mr-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-black text-slate-800 text-sm truncate">{{ w.english }}</span>
+                                        <button @click="speak(w.english, 0.7)" class="text-pink-500 hover:text-pink-700 text-xs flex-shrink-0">🔊</button>
+                                    </div>
+                                    <div class="text-xs text-purple-600 truncate font-extrabold">{{ w.meaning }}</div>
                                 </div>
-                                <div class="text-sm md:text-base text-purple-600 truncate font-extrabold mt-0.5">{{ w.meaning }}</div>
-                            </div>
-                            <div class="flex-shrink-0">
-                                <span class="px-3.5 py-1.5 rounded-xl text-sm md:text-base font-black border-2 shadow-sm" :class="getAccuracyBadgeClass(getWordAccuracy(w.id))">
-                                    {{ getWordAccuracy(w.id) !== null ? `🎯 ${getWordAccuracy(w.id)}%` : '🆕 신규' }}
-                                </span>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 하단 버튼 -->
-                <div class="flex gap-2 pt-1 border-t border-pink-100 flex-shrink-0">
-                    <button @click="startLesson(currentWeek, 'Sat')" v-if="selectedDay === 'Sat'" class="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">
-                        🔄 토요일 챌린지 다시 도전
-                    </button>
-                    <template v-else>
+                    <!-- 토요일 전용 하단 버튼 -->
+                    <div class="flex gap-2 pt-2 border-t border-pink-100 flex-shrink-0">
+                        <button @click="startLesson(currentWeek, 'Sat')" class="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">
+                            🔄 토요일 챌린지 다시 도전
+                        </button>
+                        <button @click="activeScreen = 'home'" class="flex-1 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition">
+                            🏠 홈으로 돌아가기 💖
+                        </button>
+                    </div>
+                </template>
+
+                <!-- [CASE 1-B] 평일(월~금) 완주 전용 결과 화면 -->
+                <template v-else>
+                    <div class="flex justify-between items-center bg-gradient-to-r from-pink-100 to-purple-100 p-3.5 rounded-2xl border border-pink-200 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🏆</span>
+                            <div>
+                                <h2 class="text-lg font-black text-purple-900">오늘 공부 완주 성공! 🎉</h2>
+                                <p class="text-xs font-extrabold text-pink-500">학습한 단어의 결과예요 ✨</p>
+                            </div>
+                        </div>
+                        <button @click="resetDayProgressFromUI" class="bg-purple-200/80 hover:bg-purple-300 text-purple-800 font-extrabold px-3 py-1.5 rounded-xl text-xs transition border border-purple-300 flex-shrink-0">
+                            🔄 초기화
+                        </button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto pr-1">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div v-for="w in currentWordList" :key="w.id" class="flex justify-between items-center bg-pink-50/60 border-2 border-pink-100 p-3.5 rounded-2xl hover:bg-white transition shadow-sm">
+                                <div class="min-w-0 flex-1 mr-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-slate-800 text-xl md:text-2xl truncate tracking-wide">{{ w.english }}</span>
+                                        <button @click="speak(w.english, 0.7)" class="text-pink-500 hover:text-pink-700 text-lg flex-shrink-0 active:scale-90 transition">🔊</button>
+                                    </div>
+                                    <div class="text-sm md:text-base text-purple-600 truncate font-extrabold mt-0.5">{{ w.meaning }}</div>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <span class="px-3.5 py-1.5 rounded-xl text-sm md:text-base font-black border-2 shadow-sm" :class="getAccuracyBadgeClass(getWordAccuracy(w.id))">
+                                        {{ getWordAccuracy(w.id) !== null ? `🎯 ${getWordAccuracy(w.id)}%` : '🆕 신규' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-1 border-t border-pink-100 flex-shrink-0">
                         <button @click="restartStage1Only" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
                             🔄 1단계 테스트부터 다시
                         </button>
                         <button @click="startStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                             🎨 3단계 테스트만
                         </button>
-                    </template>
-                    <button @click="advanceToNextDay" class="flex-[1.5] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
-                        <span>다음 학습으로</span> 💖
-                    </button>
-                </div>
+                        <button @click="advanceToNextDay" class="flex-[1.5] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
+                            <span>다음 학습으로</span> 💖
+                        </button>
+                    </div>
+                </template>
+
             </div>
 
             <!-- ---------------------------------------------------- -->
