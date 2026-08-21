@@ -1215,14 +1215,22 @@ createApp({
         
             focusInput();
         };
+
+        const isInputLocked = ref(false);
         
         const submitSatAnswer = () => {
-            if (feedbackMessage.value) return; 
+            // 1. 이미 입력폼이 잠겨 있거나 피드백 중이면 동작 방지
+            if (isInputLocked.value || feedbackMessage.value) return; 
             
+            // 2. 아무것도 입력하지 않고 엔터를 친 경우 아무 로직도 실행하지 않음
             if (!satInputText.value || !satInputText.value.trim()) {
-                focusInput();
                 return;
             }
+            
+            if (!satCurrentWord.value) return;
+        
+            // 3. 제출 시작 시 입력폼 즉시 잠금
+            isInputLocked.value = true;
             
             if (!satCurrentWord.value) return;
 
@@ -1253,7 +1261,9 @@ createApp({
 
             setTimeout(() => {
                 feedbackMessage.value = '';
+                isInputLocked.value = false; // 잠금 해제
                 nextSatQuestion(isCorrect);
+                focusInput(); // 포커스 재확인
             }, 1500);
         };
 
@@ -1309,7 +1319,7 @@ createApp({
             playTypingSound,
             startSatStage3Only,
             advanceFromSat,
-            playFanfareSound, playSadSound
+            playFanfareSound, playSadSound, isInputLocked
         };
     }
 }).mount('#app');
