@@ -380,7 +380,10 @@
                         <div class="text-xl font-bold text-gray-800 mb-6">
                             뜻: {{ satCurrentWord?.meaning }}
                         </div>
-            
+                        
+                        <!-- 사파리 자동완성 감지 엔진 차단용 가짜 입력창 -->
+                        <input type="text" name="prevent_autofill" style="display:none !important;" tabindex="-1" autocomplete="off">
+                        
                         <!-- 정답 입력 양식 -->
                         <div class="max-w-xs mx-auto space-y-2">
                             <input ref="satInput" 
