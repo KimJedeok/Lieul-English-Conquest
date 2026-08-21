@@ -78,8 +78,16 @@ createApp({
         };
 
         const safeSaveImagesToIDB = async (imgs) => {
-            if (typeof window.saveImagesToIDB === 'function') {
-                await window.saveImagesToIDB(imgs);
+            if (typeof window.saveImagesToIDB !== 'function') {
+                console.warn('saveImagesToIDB 함수가 정의되지 않았습니다.');
+                return false;
+            }
+            
+            try {
+                return await window.saveImagesToIDB(imgs);
+            } catch (error) {
+                console.error('IndexedDB 저장 중 오류 발생:', error);
+                throw error;
             }
         };
 
