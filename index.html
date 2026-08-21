@@ -20,9 +20,6 @@
 
     <!-- 필기 인식 전용 파일 -->
     <script src="pencil-ocr.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
 </head>
 <body class="text-slate-700 antialiased">
     <div id="app">
@@ -145,9 +142,6 @@
                 </button>
 
                 <div class="flex items-center gap-2">
-                    <div v-if="timerDisplay" class="bg-rose-500 text-white font-black px-3 py-1 rounded-full text-xs shadow animate-pulse flex items-center gap-1">
-                        ⏱️ {{ timerDisplay }}
-                    </div>
                     <div class="font-extrabold text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs flex items-center gap-1">
                         🎀 {{ currentWeek }}주차 ({{ selectedDay === 'Sat' ? '토요일 복습' : selectedDay }})
                     </div>
@@ -240,8 +234,8 @@
 
                     <!-- 토요일 전용 하단 버튼 -->
                     <div class="flex gap-2 pt-2 border-t border-pink-100 flex-shrink-0">
-                        <button @click="startLesson(currentWeek, 'Sat')" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
-                            🔄 토요일 챌린지 다시도전
+                        <button @click="restartSaturdayChallenge" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                            🔥 토요일 챌린지 다시도전
                         </button>
                         <button @click="startSatStage3Only" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                             ⚡ 3단계부터 다시
@@ -319,10 +313,10 @@
                         <div class="bg-purple-50/60 p-3 rounded-xl border border-purple-100 space-y-1">
                             <h4 class="font-extrabold text-purple-900 text-xs flex items-center gap-1">💡 학습 안내</h4>
                             <p v-if="satStage === 1" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
-                                주간 취약 단어를 집중 복습합니다.<br>알파벳이 무작위(30~50%)로 가려진 힌트를 보고 단어를 완성해보세요!
+                                주간 취약 단어를 집중적으로 복습합니다.<br>알파벳이 랜덤(30~50%)으로 가려진 힌트를 보고 단어를 완성해보세요!
                             </p>
                             <p v-else-if="satStage === 2" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
-                                텍스트 힌트가 지워집니다.<br>오직 단어 소리와 뜻만 보고 정확한 스펠링을 작성해보세요!
+                                알파벳 텍스트 힌트는 생략합니다.<br>오직 단어 소리와 뜻만 보고 정확한 스펠링을 작성해보세요!
                             </p>
                             <p v-else class="text-[11px] text-purple-700 leading-relaxed font-semibold">
                                 최종 스피드 테스트입니다.<br>문제당 <b>10초 제한시간</b> 내에 소리를 듣고 빠르게 답을 입력하세요!
