@@ -92,6 +92,21 @@ createApp({
         const currentWeek = ref(1);
         const selectedDay = ref('Mon');
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        const isSatStageStarted = ref(false); // 단계 시작 여부 플래그
+        
+        // [단계 시작 버튼 클릭 함수]
+        const startSatStage = () => {
+            isSatStageStarted.value = true;
+            focusInput();
+            if (satCurrentWord.value) {
+                speak(satCurrentWord.value.english, 0.75);
+                if (satStage.value === 3) {
+                    startSatTimer(); // 3단계일 때만 시작 버튼 클릭 시 타이머 동작
+                }
+            }
+        };
+        
 
         // ==================== [ 토요일 복습 커스텀 상태 및 타이머 ] ====================
         const satStage = ref(1);
@@ -1031,10 +1046,16 @@ createApp({
             satInputText.value = '';
             feedbackMessage.value = '';
             isFeedbackCorrect.value = true;
+            isSatStageStarted.value = false; // 시작 버튼 대기 상태로 초기화
+            
             satQuizList.value = getWeakWords(15);
            
-            if (satQuizList.value.length === 0) {
+           if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
+            }
+        
+            if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
             }
 
             focusInput(); // 진입 즉시 입력창 커서 이동
@@ -1078,6 +1099,13 @@ createApp({
 
             satWordIndex.value++;
             satInputText.value = '';
+
+            const checkStageChange = (targetStage, newList) => {
+                satStage.value = targetStage;
+                satWordIndex.value = 0;
+                satQuizList.value = newList;
+                isSatStageStarted.value = false; // 새로운 단계 진입 시 시작 버튼 대기
+            };
 
             // 1단계 -> 2단계 전환
             if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
@@ -1174,7 +1202,8 @@ createApp({
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
-            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText
+            nextSatQuestion, satTimer, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText,
+            isSatStageStarted, startSatStage
         };
     }
 }).mount('#app');
