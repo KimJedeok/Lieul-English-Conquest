@@ -170,13 +170,6 @@ createApp({
                     if (satStage.value === 3) {
                         startSatTimer();
                     }
-                }if (satCurrentWord.value) {
-                    satHintText.value = generateSatHint(satCurrentWord.value.english);
-                    speak(satCurrentWord.value.english, 0.75); // 시작 버튼 클릭 시 첫 단어 발음 재생
-                    
-                    if (satStage.value === 3) {
-                        startSatTimer();
-                    }
                 }
             });
         };
@@ -1176,7 +1169,6 @@ createApp({
         
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
-                // speak(satCurrentWord.value.english, 0.75);
             }
 
             focusInput();
@@ -1207,48 +1199,6 @@ createApp({
             return chars.join(' ');
         };
 
-        const nextSatQuestion = (isCorrect) => {
-            stopSatTimer();
-            if (isCorrect) {
-                satCorrectCount.value++;
-            }
-
-            satWordIndex.value++;
-            satInputText.value = '';
-
-            if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
-                satStage.value = 2;
-                satWordIndex.value = 0;
-                satQuizList.value = getWeakWords(15);
-                isSatStageStarted.value = false;
-            } 
-            else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
-                satStage.value = 3;
-                satWordIndex.value = 0;
-                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
-                isSatStageStarted.value = false;
-            } 
-            else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
-                isReplayingDay.value = false;
-                isDayCompleted.value = true;
-                if (!satCompletedWeeks.value.includes(currentWeek.value)) {
-                    satCompletedWeeks.value.push(currentWeek.value);
-                }
-                playCorrectSound();
-                return;
-            }
-
-            focusInput();
-            
-            if (satCurrentWord.value) {
-                satHintText.value = generateSatHint(satCurrentWord.value.english);
-                speak(satCurrentWord.value.english, 0.75);
-                if (satStage.value === 3) {
-                    startSatTimer();
-                }
-            }
-        };
-
         const restartSaturdayChallenge = () => {
             stopSatTimer();
             isInputLocked.value = false;
@@ -1276,10 +1226,9 @@ createApp({
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
         
-            // 4. 첫 단어 힌트 세팅 및 음성 재생
+            // 4. 첫 단어 힌트 세팅
             if (satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
-                // speak(satCurrentWord.value.english, 0.75);
             }
         
             focusInput();
