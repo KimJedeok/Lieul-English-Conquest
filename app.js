@@ -1179,6 +1179,41 @@ createApp({
             }
         };
 
+        const restartSaturdayChallenge = () => {
+            stopSatTimer();
+        
+            // 1. 현재 주차의 토요일 완료 기록 해제
+            satCompletedWeeks.value = satCompletedWeeks.value.filter(
+                w => String(w) !== String(currentWeek.value)
+            );
+        
+            // 2. 화면 상태 및 복습 진행도 초기화
+            isDayCompleted.value = false;
+            satStage.value = 1;
+            satWordIndex.value = 0;
+            satCorrectCount.value = 0;
+            satComboCount.value = 0;
+            satTotalQuestions.value = 55;
+            satInputText.value = '';
+            feedbackMessage.value = '';
+            isFeedbackCorrect.value = true;
+            isSatStageStarted.value = false;
+        
+            // 3. 퀴즈 데이터 재설정 (취약 단어 우선 추출)
+            satQuizList.value = getWeakWords(15);
+            if (satQuizList.value.length === 0) {
+                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
+            }
+        
+            // 4. 첫 단어 힌트 세팅 및 음성 재생
+            if (satCurrentWord.value) {
+                satHintText.value = generateSatHint(satCurrentWord.value.english);
+                speak(satCurrentWord.value.english, 0.75);
+            }
+        
+            focusInput();
+        };
+        
         const submitSatAnswer = () => {
             if (feedbackMessage.value) return; 
             
