@@ -1242,11 +1242,11 @@ createApp({
                 feedbackMessage.value = satComboCount.value >= 3 
                     ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
                     : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
-                playCorrectSound();
+                playFanfareSound();
             } else {
                 satComboCount.value = 0;
                 feedbackMessage.value = `아쉽네요! 정답은 '${satCurrentWord.value.english}' 입니다. 😢`;
-                playErrorSound();
+                playSadSound();
             }
 
             satInputText.value = '';
@@ -1308,7 +1308,8 @@ createApp({
             isSatStageStarted, startSatStage,
             playTypingSound,
             startSatStage3Only,
-            advanceFromSat
+            advanceFromSat,
+            playFanfareSound, playSadSound
         };
     }
 }).mount('#app');
