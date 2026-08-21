@@ -1063,12 +1063,26 @@ createApp({
             isReplayingDay.value = false;
             stage3Active.value = false;
 
+            // 해당 주차의 토요일 전체 단어 목록 불러오기
+            const weekWords = getWords(currentWeek.value, 'Sat');
+            
             // 이미 완료된 주차인지 검사
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
         
             if (isCompleted) {
-                // 이미 완료했다면 즉시 결과 화면(완료 상태)으로 진입
+                // 1. 완료 상태로 전환
                 isDayCompleted.value = true;
+                
+                // 2. 결과 화면 표시용 세션 데이터 복원
+                satQuizList.value = weekWords;
+                satTotalQuestions.value = weekWords.length;
+                
+                // 3. 저장된 wordStats 기준 정답 기록 집계
+                satCorrectCount.value = weekWords.filter(w => {
+                    const stat = wordStats.value[w.id];
+                    return stat && stat.correct > 0;
+                }).length;
+        
                 return;
             }
         
