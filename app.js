@@ -1326,7 +1326,8 @@ createApp({
             isSatStageStarted, startSatStage,
             playTypingSound,
             startSatStage3Only,
-            advanceFromSat
+            advanceFromSat,
+            triggerHint
         };
     }
 }).mount('#app');
