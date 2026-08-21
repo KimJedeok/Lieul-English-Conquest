@@ -83,3 +83,18 @@ const speakSequence = (wordText, sentenceText) => {
 
     window.speechSynthesis.speak(u1);
 };
+
+// 화려한 승리 팡파르 (도-미-솔-높은도)
+const playFanfareSound = () => {
+    playSound(523.25, 'triangle', 0.1);
+    setTimeout(() => playSound(659.25, 'triangle', 0.1), 80);
+    setTimeout(() => playSound(783.99, 'triangle', 0.1), 160);
+    setTimeout(() => playSound(1046.50, 'triangle', 0.35), 240);
+};
+
+// 아쉬운 실패음 (하강 단조 3연음)
+const playSadSound = () => {
+    playSound(311.13, 'sawtooth', 0.12);
+    setTimeout(() => playSound(293.66, 'sawtooth', 0.12), 120);
+    setTimeout(() => playSound(261.63, 'sawtooth', 0.4), 240);
+};
