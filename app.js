@@ -120,6 +120,7 @@ createApp({
         const satInputText = ref('');
         const satTimer = ref(10);
         let satTimerInterval = null;
+        const timerDisplay = ref('');
 
        // 👇 [추가] Vue Warn 경고 방지 및 타이머 바인딩용
         const timerDisplay = computed(() => {
