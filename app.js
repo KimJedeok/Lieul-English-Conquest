@@ -121,6 +121,11 @@ createApp({
         const satTimer = ref(10);
         let satTimerInterval = null;
 
+       // 👇 [추가] Vue Warn 경고 방지 및 타이머 바인딩용
+        const timerDisplay = computed(() => {
+            return satTimer.value !== null && satTimer.value !== undefined ? `${satTimer.value}` : '';
+        }); 
+        
         const satTotalQuestions = ref(55);
 
         const stopSatTimer = () => {
@@ -985,6 +990,12 @@ createApp({
             practiceText.value = '';
             stage3Active.value = false;
             isReplayingDay.value = true;
+            // 👇 [추가] 완료 상태를 해제해야 1단계 학습 화면이 정상적으로 표시됩니다.
+            isDayCompleted.value = false; 
+            
+            // 👇 [추가] 1단계 재시작 시 입력창 포커스 및 첫 단어 음성 재생
+            focusInput();
+            if (currentWord.value) speak(currentWord.value.english, 0.75);
         };
 
         const getWeakWords = (count) => {
