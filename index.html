@@ -240,10 +240,10 @@
 
                     <!-- 토요일 전용 하단 버튼 -->
                     <div class="flex gap-2 pt-2 border-t border-pink-100 flex-shrink-0">
-                        <button @click="startLesson(currentWeek, 'Sat')" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                        <button @click="promptRestartSatAll" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
                             🔄 토요일 챌린지 다시도전
                         </button>
-                        <button @click="startSatStage3Only" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
+                        <button @click="promptRestartSatStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                             ⚡ 3단계부터 다시
                         </button>
                         <button @click="advanceFromSat" class="flex-[1.2] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
@@ -368,7 +368,7 @@
                         </div>
             
                         <!-- 음성 재생 버튼 -->
-                        <button @click="speak(satCurrentWord.english, 0.75)" class="mb-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-sm font-bold transition flex items-center gap-1 mx-auto">
+                        <button @click="satCurrentWord && speak(satCurrentWord.english, 0.75)" class="mb-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-sm font-bold transition flex items-center gap-1 mx-auto">
                             🔊 단어 소리 다시 듣기
                         </button>
             
@@ -722,7 +722,26 @@
                 </div>
             </div>
         </div>
+        <!-- ==================== [ SATURDAY RESET MODAL ] ==================== -->
+        <div v-if="showSatResetModal" class="fixed inset-0 bg-purple-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 text-center border-4 border-pink-100">
+                <div class="text-4xl animate-bounce">🔄</div>
+                <h3 class="text-base font-extrabold text-purple-900">토요일 챌린지 재도전</h3>
+                <p class="text-xs text-purple-600 leading-relaxed font-semibold">
+                    {{ satResetType === 'all' ? '1단계부터 주말 챌린지를 처음부터 다시 도전할까요?' : '3단계 스피드 테스트만 다시 도전할까요?' }}
+                </p>
+                <div class="flex gap-2 pt-1">
+                    <button @click="cancelSatReset" class="flex-1 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs transition border border-purple-200">
+                        취소
+                    </button>
+                    <button @click="confirmSatReset" class="flex-1 py-2 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold rounded-xl text-xs shadow-md transition">
+                        확인 ✨
+                    </button>
+                </div>
+            </div>
+        </div>
 
+ 
     </div>
 
     <!-- 모듈 스크립트 연결 -->
