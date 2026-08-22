@@ -44,3 +44,7 @@ input {
     background: #FFB6C1;
     border-radius: 10px;
 }
+
+[v-cloak] {
+    display: none !important;
+}
