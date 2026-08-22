@@ -761,7 +761,7 @@ createApp({
             if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
         };
 
-        // 1) 모달 '확인' 버튼 클릭 시 실행
+        // 모달 '시작하기' 클릭 시 동작할 함수
         const confirmSatReset = () => {
             satReview.showSatResetModal.value = false;
             if (satReview.satResetType.value === 'all') {
@@ -959,7 +959,7 @@ createApp({
             ...wordsStore,
             ...satReview,
             ...audio,
-            satReview,
+            ...satReview,
             activeScreen, currentWeek, selectedDay, days, isDayCompleted, isReplayingDay,
             currentIndex, currentMode, practiceText, practiceCount, quizText, quizSubStage,
             quizPart1Count, quizPart2Count, soundBlindFailCount, hintLevel, triggerHint,
