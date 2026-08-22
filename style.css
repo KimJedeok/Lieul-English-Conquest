@@ -45,6 +45,6 @@ input {
     border-radius: 10px;
 }
 
-[v-cloak] {
+/* [v-cloak] {
     display: none !important;
-}
+}*/
