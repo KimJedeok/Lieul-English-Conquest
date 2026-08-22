@@ -389,7 +389,8 @@
             
                         <!-- 토요일 학습 입력 영역 -->
                         <div class="space-y-3">
-                            <input 
+                            <input
+                                ref="satInputRef"
                                 type="text" 
                                 v-model="satInputText"
                                 :disabled="isInputLocked"
