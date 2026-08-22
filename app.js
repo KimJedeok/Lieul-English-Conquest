@@ -82,6 +82,8 @@ createApp({
         const playTypingSound = () => playSound('typing');
         const playErrorSound = () => playSound('error');
         const playCorrectSound = () => playSound('correct');
+        const playFanfareSound = () => playSound('correct'); // 토요일 제출용 추가
+        const playSadSound = () => playSound('error');      // 토요일 제출용 추가
 
         const safeLoadImagesFromIDB = async () => {
             if (typeof loadImagesFromIDB === 'function') {
@@ -101,7 +103,7 @@ createApp({
         const allWords = ref([]);
         const learnedWordIDs = ref([]);
         const satCompletedWeeks = ref([]);
-        const satScores = ref({}); // 👈 추가: 주차별 토요일 점수 저장 객체
+        const satScores = ref({}); // 주차별 토요일 점수 저장 객체
         const savedDate = ref('');
         const imageMap = ref({});
         const currentWeek = ref(1);
@@ -156,7 +158,6 @@ createApp({
 
         const startSatStage = () => {
             isSatStageStarted.value = true;
-            // satTotalQuestions.value = satStage.value === 3 ? 25 : 15;
         
             nextTick(() => {
                 focusInput();
@@ -205,9 +206,7 @@ createApp({
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
 
-                // 👈 추가: 최종 점수를 해당 주차 키값으로 저장
                 satScores.value[currentWeek.value] = satCorrectCount.value;
-                
                 playCorrectSound();
                 return;
             }
@@ -311,7 +310,6 @@ createApp({
                 if (savedDateVal) savedDate.value = savedDateVal;
                 if (savedStats) wordStats.value = JSON.parse(savedStats);
 
-                // 👈 아래 2줄 추가
                 const savedSatScores = localStorage.getItem('vocab_sat_scores');
                 if (savedSatScores) satScores.value = JSON.parse(savedSatScores);
 
@@ -340,7 +338,6 @@ createApp({
             } catch (e) {}
         }, { deep: true });
 
-        // 👈 아래 watch 블록 추가
         watch(satScores, (newVal) => {
             try {
                 localStorage.setItem('vocab_sat_scores', JSON.stringify(newVal));
@@ -637,6 +634,7 @@ createApp({
             if (confirm('정말로 모든 주차의 학습 진도를 초기화하시겠습니까? 🌸')) {
                 learnedWordIDs.value = [];
                 satCompletedWeeks.value = [];
+                satScores.value = {};
             }
         };
 
@@ -646,6 +644,7 @@ createApp({
                 const weekWordIDs = allWords.value.filter(w => String(w.week) === wStr).map(w => w.id);
                 learnedWordIDs.value = learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
                 satCompletedWeeks.value = satCompletedWeeks.value.filter(wNum => String(wNum) !== wStr);
+                delete satScores.value[week];
             }
         };
 
@@ -656,6 +655,7 @@ createApp({
             if (d === 'Sat') {
                 if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸`)) {
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
+                    delete satScores.value[w];
                     startSaturdayReview();
                 }
             } else {
@@ -667,6 +667,7 @@ createApp({
                 if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸`)) {
                     learnedWordIDs.value = learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
+                    delete satScores.value[w];
                     resetDayProgress(true);
                 }
             }
@@ -1138,13 +1139,11 @@ createApp({
             const weekWords = getWords(currentWeek.value, 'Sat');
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
         
-            // ⭕ [수정] 이미 완료된 주차라면 즉시 결과 화면(isDayCompleted = true)을 띄웁니다.
             if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
                 satTotalQuestions.value = 55;
                 
-                // 👈 [수정] 저장된 점수가 있으면 우선 복원, 없을 때만 fallback 계산
                 if (satScores.value[currentWeek.value] !== undefined) {
                     satCorrectCount.value = satScores.value[currentWeek.value];
                 } else if (!satCorrectCount.value) {
@@ -1155,10 +1154,9 @@ createApp({
                     
                     satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
                 }
-                return; // 1단계 진행 코드로 내려가지 않고 종료
+                return;
             }
         
-            // --- 미완료 주차일 경우 1단계 새로 시작 ---        
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
@@ -1170,7 +1168,6 @@ createApp({
             isFeedbackCorrect.value = true;
             isSatStageStarted.value = false;
             
-            // 1단계: 취약 단어를 무작위 순서로 설정
             satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
            
             if (satQuizList.value.length === 0) {
@@ -1241,20 +1238,11 @@ createApp({
         };
         
         const submitSatAnswer = () => {
-            // 1. 이미 입력폼이 잠겨 있거나 피드백 중이면 동작 방지
             if (isInputLocked.value || feedbackMessage.value) return; 
-            
-            // 2. 아무것도 입력하지 않고 엔터를 친 경우 아무 로직도 실행하지 않음
-            if (!satInputText.value || !satInputText.value.trim()) {
-                return;
-            }
-            
+            if (!satInputText.value || !satInputText.value.trim()) return;
             if (!satCurrentWord.value) return;
         
-            // 3. 제출 시작 시 입력폼 즉시 잠금
             isInputLocked.value = true;
-            
-            if (!satCurrentWord.value) return;
 
             const userInput = satInputText.value.trim().toLowerCase();
             const targetWord = satCurrentWord.value.english.toLowerCase();
@@ -1283,9 +1271,9 @@ createApp({
 
             setTimeout(() => {
                 feedbackMessage.value = '';
-                isInputLocked.value = false; // 잠금 해제
+                isInputLocked.value = false;
                 nextSatQuestion(isCorrect);
-                focusInput(); // 포커스 재확인
+                focusInput();
             }, 1500);
         };
 
