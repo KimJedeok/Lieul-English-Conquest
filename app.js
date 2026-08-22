@@ -6,6 +6,13 @@ const { createApp, ref, computed, nextTick, onMounted, onUnmounted, unref, isRef
 
 createApp({
     setup() {
+
+        // app.js setup() 내부 하단
+        onMounted(() => {
+            window.mySat = satReview; // 콘솔에서 테스트용으로 접근
+        });
+
+        
         const wordsStore = useWordsStore();
         const satReview = useSaturdayReview(wordsStore, audio);
 
