@@ -238,15 +238,17 @@
 
                     <!-- 토요일 전용 하단 버튼 -->
                     <div class="flex gap-2 pt-2 border-t border-pink-100 flex-shrink-0">
-                        <button @click="promptRestartSatAll()" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
+                        <!-- promptRestartSatAll 함수로 변경 -->
+                        <button @click="console.log('버튼 클릭됨!'); promptRestartSatAll" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-purple-300">
                             🔥 토요일 챌린지 다시도전
                         </button>
                     
-                        <button @click="promptRestartSatStage3()" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
+                        <!-- promptRestartSatStage3 함수로 변경 -->
+                        <button @click="promptRestartSatStage3" class="flex-1 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-extrabold py-2.5 rounded-xl text-xs transition">
                             ⚡ 3단계부터 다시
                         </button>
                     
-                        <button @click="advanceFromSat()" class="flex-[1.2] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
+                        <button @click="advanceFromSat" class="flex-[1.2] bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-black py-2.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-1">
                             <span>다음 학습으로</span> 💖
                         </button>
                     </div>
@@ -743,16 +745,15 @@
                     <span class="text-[11px] text-pink-500 font-bold">(기존 완료 기록이 초기화됩니다 ✨)</span>
                 </p>
                 <div class="flex gap-2 pt-1">
-                    <button @click="cancelSatReset()" class="flex-1 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs transition border border-purple-200">
+                    <button @click="cancelSatReset" class="flex-1 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs transition border border-purple-200">
                         취소
                     </button>
-                    <button @click="confirmSatReset()" class="flex-1 py-2 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold rounded-xl text-xs shadow-md transition">
+                    <button @click="confirmSatReset" class="flex-1 py-2 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold rounded-xl text-xs shadow-md transition">
                         시작하기 ✨
                     </button>
                 </div>
             </div>
         </div>
-    
     </div>
 
     <!-- index.html 하단 기존 스크립트 부분 수정 -->
