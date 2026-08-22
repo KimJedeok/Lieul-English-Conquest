@@ -1381,6 +1381,7 @@ createApp({
             playFanfareSound, playSadSound, isInputLocked,
             showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
             satStageTotalQuestions,
+            satInputRef
         };
     }
 }).mount('#app');
