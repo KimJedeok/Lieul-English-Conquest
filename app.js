@@ -173,55 +173,6 @@ createApp({
             });
         };
 
-        const nextSatQuestion = (isCorrect) => {
-            stopSatTimer();
-            if (isCorrect) {
-                satCorrectCount.value++;
-            }
-        
-            satWordIndex.value++;
-            satInputText.value = '';
-        
-            // 1단계 종료 -> 2단계 무작위 셔플로 재배치
-            if (satStage.value === 1 && satWordIndex.value >= satQuizList.value.length) {
-                satStage.value = 2;
-                satWordIndex.value = 0;
-                satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
-                isSatStageStarted.value = false;
-                return;
-            } 
-            // 2단계 종료 -> 3단계 전환
-            else if (satStage.value === 2 && satWordIndex.value >= satQuizList.value.length) {
-                satStage.value = 3;
-                satWordIndex.value = 0;
-                satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
-                isSatStageStarted.value = false;
-                return;
-            } 
-            // 3단계 종료 -> 학습 완료
-            else if (satStage.value === 3 && satWordIndex.value >= satQuizList.value.length) {
-                isReplayingDay.value = false;
-                isDayCompleted.value = true;
-                if (!satCompletedWeeks.value.includes(currentWeek.value)) {
-                    satCompletedWeeks.value.push(currentWeek.value);
-                }
-
-                satScores.value[currentWeek.value] = satCorrectCount.value;
-                playCorrectSound();
-                return;
-            }
-        
-            focusInput();
-            
-            if (satCurrentWord.value) {
-                satHintText.value = generateSatHint(satCurrentWord.value.english);
-                speak(satCurrentWord.value.english, 0.75);
-                if (satStage.value === 3) {
-                    startSatTimer();
-                }
-            }
-        };
-        
         const wordStats = ref({});
         const isReplayingDay = ref(false);
 
@@ -1240,47 +1191,6 @@ createApp({
         
             focusInput();
         };
-        
-        const submitSatAnswer = () => {
-            if (isInputLocked.value || feedbackMessage.value) return; 
-            if (!satInputText.value || !satInputText.value.trim()) return;
-            if (!satCurrentWord.value) return;
-
-            stopSatTimer(); // 👈 제출 즉시 타이머를 멈춰 타임아웃 중복 실행을 방지합니다.
-            isInputLocked.value = true;
-
-            const userInput = satInputText.value.trim().toLowerCase();
-            const targetWord = satCurrentWord.value.english.toLowerCase();
-            const isCorrect = (userInput === targetWord);
-
-            isFeedbackCorrect.value = isCorrect;
-            if (isCorrect) {
-                satComboCount.value++;
-                const positiveMsgs = [
-                    '✨ 완벽해요! 완벽하게 기억하셨네요!',
-                    '🔥 훌륭해요! 거침없는 정답 행진!',
-                    '🌸 대단합니다! 실력이 대폭 상승 중!',
-                    '💖 정답! 이 기세로 완벽 마감해봅시다!'
-                ];
-                feedbackMessage.value = satComboCount.value >= 3 
-                    ? `🔥 ${satComboCount.value}연속 정답 폭발!! 최고예요! 🎉` 
-                    : positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
-                playFanfareSound();
-            } else {
-                satComboCount.value = 0;
-                feedbackMessage.value = `아쉽네요! 정답은 '${satCurrentWord.value.english}' 입니다. 😢`;
-                playSadSound();
-            }
-
-            satInputText.value = '';
-
-            setTimeout(() => {
-                feedbackMessage.value = '';
-                isInputLocked.value = false;
-                nextSatQuestion(isCorrect);
-                focusInput();
-            }, 1500);
-        };
 
         const startSatStage3Only = () => {
             stopSatTimer();
@@ -1325,44 +1235,125 @@ createApp({
             showSatResetModal.value = true;
         };
         
-        const confirmSatReset = () => {
-            showSatResetModal.value = false;
-            satCorrectCount.value = 0; // 누적 정답수 초기화
-            satWordIndex.value = 0;
-            satComboCount.value = 0;
-        
-            if (satResetType.value === 'stage3') {
-                // 3단계만 다시 할 때는 최종 분모를 25로 설정 (정답률 = 맞춘개수 / 25 * 100)
-                satStage.value = 3;
-                satTotalQuestions.value = 25; 
-                satQuizList.value = getWeakWords(25);
-                startSatTimer();
-            } else {
-                // 전체 재도전 시 최종 분모를 55로 설정 (정답률 = 맞춘개수 / 55 * 100)
-                satStage.value = 1;
-                satTotalQuestions.value = 55; 
-                satQuizList.value = getWeakWords(15);
-            }
-            
-            satCurrentWord.value = satQuizList.value[0];
-            isInputLocked.value = false;
-        };
-        
         const cancelSatReset = () => {
             showSatResetModal.value = false;
         };
 
-        // [1] 화면 상단 UI 전용 (전체 점수 계산에 영향을 주지 않음)
-        const satStageTotalQuestions = computed(() => {
-            // 3단계 재도전 모드일 경우 stage와 상관없이 25개 표시
-            if (satResetType.value === 'stage3') return 25; 
-        
-            // 일반 진행 시 단계별 목표 문제 수 반환
-            if (satStage.value === 1) return 15;
-            if (satStage.value === 2) return 15;
-            if (satStage.value === 3) return 25;
-            return 15;
-        });
+            // 1. 상태 변수 선언
+            const satInputRef = ref(null);
+            let satFeedbackTimer = null; // 비동기 피드백 타이머 저장용
+            // 2. UI 전용 단어 수 계산 (단어 부족 상황 대비 경계값 처리 포함)
+            const satStageTotalQuestions = computed(() => {
+                const listLen = satQuizList.value.length || 0;
+                if (satResetType.value === 'stage3') {
+                    return Math.min(25, listLen || 25);
+                }
+                const target = (satStage.value === 3) ? 25 : 15;
+                return listLen > 0 ? Math.min(target, listLen) : target;
+            });   
+            // 3. 안전한 타이머 초기화 함수
+            const clearSatFeedbackTimer = () => {
+                if (satFeedbackTimer) {
+                    clearTimeout(satFeedbackTimer);
+                    satFeedbackTimer = null;
+                }
+            }; 
+            // 4. 정답 제출 처리
+            const submitSatAnswer = () => {
+                if (isInputLocked.value || feedbackMessage.value) return; 
+                if (!satInputText.value || !satInputText.value.trim()) return;
+                if (!satCurrentWord.value) return;
+            
+                clearSatFeedbackTimer();
+                stopSatTimer();
+                isInputLocked.value = true;
+            
+                const userInput = satInputText.value.trim().toLowerCase();
+                const correctWord = satCurrentWord.value.english.trim().toLowerCase();
+            
+                if (userInput === correctWord) {
+                    satCorrectCount.value++;
+                    satComboCount.value++;
+                    feedbackMessage.value = '⭕ 정답입니다!';
+                } else {
+                    satComboCount.value = 0;
+                    feedbackMessage.value = `❌ 오답! (정답: ${satCurrentWord.value.english})`;
+                }
+            
+                // 피드백 타이머 안전 등록
+                satFeedbackTimer = setTimeout(() => {
+                    nextSatQuestion();
+                }, 1500);
+            };
+            // 5. 타임아웃 처리 (3단계 제한시간 초과시)
+            const handleSatTimeout = () => {
+                if (isInputLocked.value) return;
+                clearSatFeedbackTimer();
+                isInputLocked.value = true;
+                
+                satComboCount.value = 0;
+                feedbackMessage.value = `⏰ 시간 초과! (정답: ${satCurrentWord.value?.english})`;
+            
+                satFeedbackTimer = setTimeout(() => {
+                    nextSatQuestion();
+                }, 1500);
+            };
+             // 6. 다음 문제 이동 및 포커스 복원
+            const nextSatQuestion = () => {
+                clearSatFeedbackTimer();
+                satInputText.value = '';
+                feedbackMessage.value = '';
+                
+                satWordIndex.value++;
+            
+                const currentLimit = satStage.value === 3 ? 25 : 15;
+                
+                if (satWordIndex.value >= currentLimit || satWordIndex.value >= satQuizList.value.length) {
+                    advanceSatStage();
+                } else {
+                    satCurrentWord.value = satQuizList.value[satWordIndex.value];
+                    
+                    if (satStage.value === 3) {
+                        startSatTimer();
+                    }
+                    
+                    // 입력창이 화면에 존재하는 경우에만 안전하게 포커스 부여
+                    isInputLocked.value = false;
+                    nextTick(() => {
+                        satInputRef.value?.focus();
+                    });
+                }
+            };
+            // 7. 재도전 확정 시 (타이머 완벽 리셋)
+            const confirmSatReset = () => {
+                clearSatFeedbackTimer(); // 진행 중인 피드백 즉시 취소
+                stopSatTimer();
+                showSatResetModal.value = false;
+                
+                satCorrectCount.value = 0;
+                satWordIndex.value = 0;
+                satComboCount.value = 0;
+                satInputText.value = '';
+                feedbackMessage.value = '';
+            
+                if (satResetType.value === 'stage3') {
+                    satStage.value = 3;
+                    satTotalQuestions.value = 25;
+                    satQuizList.value = getWeakWords(25);
+                    startSatTimer();
+                } else {
+                    satStage.value = 1;
+                    satTotalQuestions.value = 55;
+                    satQuizList.value = getWeakWords(15);
+                }
+                
+                satCurrentWord.value = satQuizList.value[0];
+                isInputLocked.value = false;
+                
+                nextTick(() => {
+                    satInputRef.value?.focus();
+                });
+            };
                 
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
