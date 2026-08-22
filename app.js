@@ -6,12 +6,8 @@ const { createApp, ref, computed, nextTick, onMounted, onUnmounted, unref, isRef
 
 createApp({
     setup() {
-
-        // app.js setup() 내부 하단
-        onMounted(() => {
-            window.mySat = satReview; // 콘솔에서 테스트용으로 접근
-        });
-
+        // 글로벌 단일 인스턴스로 동기화
+        window.mySat = satReview;
         
         const wordsStore = useWordsStore();
         const satReview = useSaturdayReview(wordsStore, audio);
@@ -962,7 +958,7 @@ createApp({
             ...wordsStore,
             ...satReview,
             ...audio,
-            ...satReview,
+            satReview,
             activeScreen, currentWeek, selectedDay, days, isDayCompleted, isReplayingDay,
             currentIndex, currentMode, practiceText, practiceCount, quizText, quizSubStage,
             quizPart1Count, quizPart2Count, soundBlindFailCount, hintLevel, triggerHint,
@@ -978,7 +974,16 @@ createApp({
             submitSatAnswer, startSatStage, nextSatQuestion, startSatStage3Only,
             restartSaturdayChallenge, promptRestartSatAll, promptRestartSatStage3, cancelSatReset, confirmSatReset, advanceFromSat, advanceToNextDay,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ,
-            nextStage3Question, getWordImage, handleImgError, focusInput
+            nextStage3Question, getWordImage, handleImgError, focusInput,
+            // 낱개 반응형 변수 연결
+            showSatResetModal: satReview.showSatResetModal,
+            satResetType: satReview.satResetType,
+            
+            // 실행 함수 연결
+            promptRestartSatAll,
+            promptRestartSatStage3,
+            confirmSatReset,
+            cancelSatReset: satReview.cancelSatReset
         };
     }
 }).mount('#app');
