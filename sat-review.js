@@ -37,7 +37,6 @@ export function useSaturdayReview(wordsStore, audio) {
         return 'bg-rose-600 text-white animate-pulse';
     });
 
-    // 로컬 데이터 초기화
     const initSatData = () => {
         try {
             const savedSatCompleted = localStorage.getItem('vocab_sat_completed');
