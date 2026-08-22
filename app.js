@@ -910,6 +910,22 @@ createApp({
             "🌟 대단해요! 완벽하게 잘 썼어요! 🎀"
         ];
 
+        // 토요일 전용 정답 / 오답 응원 메시지 목록
+        const satCorrectMessages = [
+            "🎉 완벽해요! 거침없이 정답입니다! 💖",
+            "⚡ 빛의 속도로 정답! 실력이 대단해요! ✨",
+            "🔥 스펠링 완벽 파악! 아주 훌륭합니다! 🚀",
+            "💯 최고예요! 이 기세로 다음 문제도! ⭐️",
+            "🌟 대단해요! 완벽하게 뇌리에 저장 완료! 🎀"
+        ];
+        
+        const satIncorrectMessages = [
+            "💪 아쉬워요! 괜찮아요, 이번에 확실히 외워둬요!",
+            "🌱 실수해도 괜찮아요! 다음 단어에서 멋지게 성공해봐요!",
+            "🔥 아까운 오답! 다시 집중해서 다음 문제를 공략해요!",
+            "✨ 정답을 확인하고 다음 문제에서 실력을 발휘해봐요!"
+        ];
+
         const revealPencilAnswer = async () => {
             if (!currentStage3Item.value) return;
             const targetWord = currentStage3Item.value.word.english;
@@ -1280,12 +1296,20 @@ createApp({
                 satCorrectCount.value++;
                 satComboCount.value++;
                 isFeedbackCorrect.value = true;
-                feedbackMessage.value = '⭕ 정답입니다!';
+                
+                // ⭐ 무작위 칭찬 메시지 선택
+                const randomMsg = satCorrectMessages[Math.floor(Math.random() * satCorrectMessages.length)];
+                feedbackMessage.value = randomMsg;
+                
                 playCorrectSound();
             } else {
                 satComboCount.value = 0;
                 isFeedbackCorrect.value = false;
-                feedbackMessage.value = `❌ 오답! (정답: ${satCurrentWord.value.english})`;
+                
+                // ⭐ 무작위격려 메시지 + 정답 표시
+                const randomMsg = satIncorrectMessages[Math.floor(Math.random() * satIncorrectMessages.length)];
+                feedbackMessage.value = `${randomMsg} (정답: ${satCurrentWord.value.english})`;
+                        
                 playErrorSound();
             }
         
@@ -1301,7 +1325,10 @@ createApp({
             
             satComboCount.value = 0;
             isFeedbackCorrect.value = false;
-            feedbackMessage.value = `⏰ 시간 초과! (정답: ${satCurrentWord.value?.english})`;
+            
+            // ⭐ 시간 초과 전용 동기부여 메시지
+            feedbackMessage.value = `⏰ 아쉽게 시간 초과! 다음 문제에서 빠르게 도전해봐요! (정답: ${satCurrentWord.value?.english})`;
+            
             playErrorSound();
 
             satFeedbackTimer = setTimeout(() => {
