@@ -683,47 +683,46 @@ createApp({
             }
         };
 
+        // 3) 3단계만 재도전 실행
         const startSatStage3Only = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-            activeScreen.value = 'learning';
-            isReplayingDay.value = false;
-            stage3Active.value = false;
+        
             isDayCompleted.value = false;
-
-            if (satReview.satCompletedWeeks) {
-                const list = unref(satReview.satCompletedWeeks);
-                if (Array.isArray(list)) {
-                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
-                }
-            }
-
+            activeScreen.value = 'learning';
+            selectedDay.value = 'Sat';
+        
             satReview.satStage.value = 3;
             satReview.satWordIndex.value = 0;
-            satReview.satCorrectCount.value = 0;
             satReview.satComboCount.value = 0;
-            satReview.satTotalQuestions.value = 25;
-            satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
-            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
-            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
+            satReview.isInputLocked.value = false;
+            satReview.isSatStageStarted.value = true;
+        
+            const weekWords = wordsStore.getWords(currentWeek.value, 'Sat');
+            satReview.satQuizList.value = weekWords.sort(() => 0.5 - Math.random());
+        
+            satReview.startSatTimer(() => {
+                if (typeof nextSatQuestion === 'function') nextSatQuestion(false);
+            });
+        
             focusInput();
         };
 
+        // 2) 전체 재도전 실행
         const restartSaturdayChallenge = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-            activeScreen.value = 'learning';
-            isReplayingDay.value = false;
-            stage3Active.value = false;
+            
+            // 결과 화면 해제 및 메인 학습 화면 전환
             isDayCompleted.value = false;
-
-            if (satReview.satCompletedWeeks) {
-                const list = unref(satReview.satCompletedWeeks);
-                if (Array.isArray(list)) {
-                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
-                }
-            }
-
+            activeScreen.value = 'learning';
+            selectedDay.value = 'Sat';
+        
+            // 해당 주차 완료 기록 삭제 (String 변환으로 안전하게 비교)
+            const curW = String(currentWeek.value);
+            satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(w => String(w) !== curW);
+        
+            // 학습 상태 초기화
             satReview.satStage.value = 1;
             satReview.satWordIndex.value = 0;
             satReview.satCorrectCount.value = 0;
@@ -731,18 +730,15 @@ createApp({
             satReview.satTotalQuestions.value = 55;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
-            if (satReview.isFeedbackCorrect) satReview.isFeedbackCorrect.value = true;
-            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
-            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
-
+            satReview.isInputLocked.value = false;
+            satReview.isSatStageStarted.value = false;
+        
+            // 문제 데이터 재구성
             satReview.satQuizList.value = wordsStore.getWeakWords(currentWeek.value, 15).sort(() => Math.random() - 0.5);
             if (!satReview.satQuizList.value || satReview.satQuizList.value.length === 0) {
                 satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
-
-            if (satReview.satCurrentWord?.value) {
-                satReview.satHintText.value = satReview.generateSatHint(satReview.satCurrentWord.value.english);
-            }
+        
             focusInput();
         };
 
@@ -761,22 +757,25 @@ createApp({
             if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
         };
 
+        // 1) 모달 '확인' 버튼 클릭 시 실행
         const confirmSatReset = () => {
-            if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
-            const type = unref(satReview.satResetType);
-            if (type === 'all') {
+            satReview.showSatResetModal.value = false;
+            if (satReview.satResetType.value === 'all') {
                 restartSaturdayChallenge();
-            } else if (type === 'stage3') {
+            } else if (satReview.satResetType.value === 'stage3') {
                 startSatStage3Only();
             }
         };
 
+        // 4) 다음 주차 이동
         const advanceFromSat = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-            const weeks = unref(wordsStore.availableWeeks) || [];
-            const weekIdx = weeks.indexOf(currentWeek.value);
-            if (weekIdx < weeks.length - 1) {
-                currentWeek.value = weeks[weekIdx + 1];
+            const weeks = Vue.unref(wordsStore.availableWeeks) || [];
+            const curW = String(currentWeek.value);
+            const weekIdx = weeks.findIndex(w => String(w) === curW);
+        
+            if (weekIdx !== -1 && weekIdx < weeks.length - 1) {
+                currentWeek.value = Number(weeks[weekIdx + 1]) || weeks[weekIdx + 1];
                 changeDay('Mon');
             } else {
                 activeScreen.value = 'home';
@@ -956,6 +955,7 @@ createApp({
             ...wordsStore,
             ...satReview,
             ...audio,
+            ...satReview,
             activeScreen, currentWeek, selectedDay, days, isDayCompleted, isReplayingDay,
             currentIndex, currentMode, practiceText, practiceCount, quizText, quizSubStage,
             quizPart1Count, quizPart2Count, soundBlindFailCount, hintLevel, triggerHint,
