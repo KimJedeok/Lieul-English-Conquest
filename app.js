@@ -150,6 +150,7 @@ createApp({
             }, 1000);
         };
 
+        // 1. 단계 시작 버튼 클릭 시 호출
         const startSatStage = () => {
             isSatStageStarted.value = true;
         
@@ -157,7 +158,10 @@ createApp({
                 focusInput();
                 
                 if (satCurrentWord.value) {
-                    satHintText.value = generateSatHint(satCurrentWord.value.english);
+                    if (satStage.value === 1) {
+                        satHintText.value = generateSatHint(satCurrentWord.value.english);
+                    }
+                    // ⭐ 시작 버튼을 누른 직후 첫 단어 발음 재생
                     speak(satCurrentWord.value.english, 0.75);
                     
                     if (satStage.value === 3) {
@@ -1314,7 +1318,7 @@ createApp({
                 satInputText.value = '';
                 feedbackMessage.value = '';
                 isInputLocked.value = false;
-                focusInput();
+                isSatStageStarted.value = false; // ⭐ 2단계 시작 버튼 대기 상태로 전환
             } else if (satStage.value === 2) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
@@ -1322,8 +1326,7 @@ createApp({
                 satInputText.value = '';
                 feedbackMessage.value = '';
                 isInputLocked.value = false;
-                startSatTimer();
-                focusInput();
+                isSatStageStarted.value = false; // ⭐ 3단계 시작 버튼 대기 상태로 전환
             } else {
                 isDayCompleted.value = true;
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
@@ -1334,13 +1337,13 @@ createApp({
             }
         };
 
+        // 3. 같은 단계 내 다음 문제 이동
         const nextSatQuestion = () => {
             clearSatFeedbackTimer();
             satInputText.value = '';
             feedbackMessage.value = '';
             
             satWordIndex.value++;
-        
             const currentLimit = satStage.value === 3 ? 25 : 15;
             
             if (satWordIndex.value >= currentLimit || satWordIndex.value >= satQuizList.value.length) {
@@ -1352,6 +1355,11 @@ createApp({
                 
                 if (satStage.value === 3) {
                     startSatTimer();
+                }
+                
+                // ⭐ 동일 단계 내에서 다음 단어로 넘어갈 때 발음 재생
+                if (satCurrentWord.value) {
+                    speak(satCurrentWord.value.english, 0.75);
                 }
                 
                 isInputLocked.value = false;
