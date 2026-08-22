@@ -1294,6 +1294,33 @@ createApp({
             }
         };
 
+        // ==================== [ 토요일 재도전 모달 상태 ] ====================
+        const showSatResetModal = ref(false);
+        const satResetType = ref('all'); // 'all' (전체) 또는 'stage3' (3단계만)
+        
+        const promptRestartSatAll = () => {
+            satResetType.value = 'all';
+            showSatResetModal.value = true;
+        };
+        
+        const promptRestartSatStage3 = () => {
+            satResetType.value = 'stage3';
+            showSatResetModal.value = true;
+        };
+        
+        const confirmSatReset = () => {
+            showSatResetModal.value = false;
+            if (satResetType.value === 'all') {
+                restartSaturdayChallenge();
+            } else if (satResetType.value === 'stage3') {
+                startSatStage3Only();
+            }
+        };
+        
+        const cancelSatReset = () => {
+            showSatResetModal.value = false;
+        };
+                
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
             wordStats, recordAttempt, getWordAccuracy, getAccuracyBadgeClass,
@@ -1317,7 +1344,8 @@ createApp({
             playTypingSound,
             startSatStage3Only,
             advanceFromSat,
-            playFanfareSound, playSadSound, isInputLocked
+            playFanfareSound, playSadSound, isInputLocked,
+            showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset
         };
     }
 }).mount('#app');
