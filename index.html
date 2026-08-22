@@ -387,24 +387,23 @@
                             뜻: {{ satCurrentWord?.meaning }}
                         </div>
                         
-                        <!-- 사파리 자동완성 감지 엔진 차단용 가짜 입력창 -->
-                        <input type="text" name="prevent_autofill" style="display:none !important;" tabindex="-1" autocomplete="off">
-                        
-                        <!-- 정답 입력 양식 -->
-                        <div class="max-w-xs mx-auto space-y-2">
+                            <!-- 1. 사파리 스캐너 낚시용 미끼 (display:none 사용 금지) -->
+                            <input type="text" name="fullname" autocomplete="name" style="opacity:0; position:absolute; width:0; height:0; z-index:-1;" tabindex="-1">
+                            <input type="tel" name="phone" autocomplete="tel" style="opacity:0; position:absolute; width:0; height:0; z-index:-1;" tabindex="-1">
+                            
+                            <!-- 2. 실제 정답 입력창 -->
                             <input ref="satInput" 
-                                   type="text"
-                                   name="quiz_answer_no_autofill"
-                                   id="quiz_answer_no_autofill"
+                                   type="search"
+                                   name="word_search_query"
+                                   id="word_search_query"
                                    v-model="satInputText" 
                                    :readonly="isInputLocked"
                                    @input="playTypingSound"
                                    @keyup.enter="submitSatAnswer" 
-                                   autocomplete="one-time-code"
+                                   autocomplete="off"
                                    autocapitalize="off"
                                    autocorrect="off"
                                    spellcheck="false"
-                                   autocomplete="off"
                                    placeholder="스펠링을 입력하세요" 
                                    class="w-full h-11 px-3 bg-white border-2 border-pink-300 rounded-xl font-bold text-lg text-purple-900 text-center focus:outline-none focus:border-purple-500 shadow-inner">
                             
