@@ -2,7 +2,7 @@ import { useWordsStore } from './words-store.js';
 import { useSaturdayReview } from './sat-review.js';
 import * as audio from './audio.js';
 
-const { createApp, ref, computed, nextTick, onMounted, onUnmounted } = Vue;
+const { createApp, ref, computed, nextTick, onMounted, onUnmounted, unref, isRef } = Vue;
 
 createApp({
     setup() {
@@ -51,16 +51,23 @@ createApp({
             });
         };
 
-        const currentWordList = computed(() => wordsStore.getWords(currentWeek.value, selectedDay.value));
-        const currentWord = computed(() => currentWordList.value[currentIndex.value] || null);
-        const learnedInDayCount = computed(() => currentWordList.value.filter(w => wordsStore.isLearned(w)).length);
+        const currentWordList = computed(() => {
+            return wordsStore.getWords ? wordsStore.getWords(currentWeek.value, selectedDay.value) : [];
+        });
+        const currentWord = computed(() => (currentWordList.value && currentWordList.value[currentIndex.value]) || null);
+        const learnedInDayCount = computed(() => {
+            if (!currentWordList.value) return 0;
+            return currentWordList.value.filter(w => wordsStore.isLearned && wordsStore.isLearned(w)).length;
+        });
         const currentStage3Item = computed(() => stage3List.value[stage3Index.value] || null);
 
         const isWeekCompleted = (week) => {
             const wStr = String(week);
-            const words = wordsStore.allWords.value.filter(w => String(w.week) === wStr);
-            const allWordsLearned = words.length > 0 && words.every(w => wordsStore.isLearned(w));
-            return allWordsLearned && satReview.satCompletedWeeks.value.some(w => String(w) === wStr);
+            const allW = unref(wordsStore.allWords) || [];
+            const completedWeeks = unref(satReview.satCompletedWeeks) || [];
+            const words = allW.filter(w => String(w.week) === wStr);
+            const allWordsLearned = words.length > 0 && words.every(w => wordsStore.isLearned && wordsStore.isLearned(w));
+            return allWordsLearned && completedWeeks.some(w => String(w) === wStr);
         };
 
         const isWeekUnlocked = () => true;
@@ -68,38 +75,46 @@ createApp({
         const isDayDone = (week, day) => {
             const wStr = String(week);
             if (day === 'Sat') {
-                return satReview.satCompletedWeeks.value.some(w => String(w) === wStr);
+                const completedWeeks = unref(satReview.satCompletedWeeks) || [];
+                return completedWeeks.some(w => String(w) === wStr);
             }
-            const words = wordsStore.getWords(week, day);
-            return words.length > 0 && words.every(w => wordsStore.isLearned(w));
+            const words = wordsStore.getWords ? wordsStore.getWords(week, day) : [];
+            return words.length > 0 && words.every(w => wordsStore.isLearned && wordsStore.isLearned(w));
         };
 
         const isDayUnlocked = (week, day) => {
             const targetIdx = days.indexOf(day);
             if (targetIdx === 0) return true;
             for (let i = 0; i < targetIdx; i++) {
-                const prevDayWords = wordsStore.getWords(week, days[i]);
-                if (prevDayWords.length > 0 && !prevDayWords.every(w => wordsStore.isLearned(w))) return false;
+                const prevDayWords = wordsStore.getWords ? wordsStore.getWords(week, days[i]) : [];
+                if (prevDayWords.length > 0 && !prevDayWords.every(w => wordsStore.isLearned && wordsStore.isLearned(w))) return false;
             }
             return true;
         };
 
         const overallProgressRate = computed(() => {
-            const total = wordsStore.allWords.value.length;
-            return total === 0 ? 0 : wordsStore.learnedWordIDs.value.length / total;
+            const allW = unref(wordsStore.allWords) || [];
+            const learnedIDs = unref(wordsStore.learnedWordIDs) || [];
+            const total = allW.length;
+            return total === 0 ? 0 : learnedIDs.length / total;
         });
 
         const getWeekProgressRate = (week) => {
             const wStr = String(week);
-            const words = wordsStore.allWords.value.filter(w => String(w.week) === wStr);
+            const allW = unref(wordsStore.allWords) || [];
+            const completedWeeks = unref(satReview.satCompletedWeeks) || [];
+            const words = allW.filter(w => String(w.week) === wStr);
             if (words.length === 0) return 0;
-            const learnedCount = words.filter(w => wordsStore.isLearned(w)).length;
-            const satDone = satReview.satCompletedWeeks.value.some(w => String(w) === wStr) ? 1 : 0;
+            const learnedCount = words.filter(w => wordsStore.isLearned && wordsStore.isLearned(w)).length;
+            const satDone = completedWeeks.some(w => String(w) === wStr) ? 1 : 0;
             return (learnedCount + (satDone ? (words.length * 0.2) : 0)) / (words.length * 1.2);
         };
 
         const todayLesson = computed(() => {
-            const weeks = wordsStore.availableWeeks.value || [];
+            const weeks = unref(wordsStore.availableWeeks) || [];
+            if (!Array.isArray(weeks) || weeks.length === 0) {
+                return { week: 1, day: 'Mon' };
+            }
             for (let w of weeks) {
                 for (let d of days) {
                     if (isDayUnlocked(w, d) && !isDayDone(w, d)) {
@@ -117,7 +132,7 @@ createApp({
         };
 
         const startLesson = (week, day) => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             if (typeof week !== 'number' && typeof week !== 'string') {
                 week = todayLesson.value.week;
                 day = todayLesson.value.day;
@@ -130,26 +145,26 @@ createApp({
             activeScreen.value = 'learning';
 
             if (selectedDay.value === 'Sat') {
-                satReview.startSaturdayReview(currentWeek.value, isDayCompleted, focusInput);
+                if (satReview.startSaturdayReview) satReview.startSaturdayReview(currentWeek.value, isDayCompleted, focusInput);
             } else {
                 resetDayProgress();
             }
         };
 
         const changeDay = (day) => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             selectedDay.value = String(day);
             if (selectedDay.value === 'Sat') {
-                satReview.startSaturdayReview(currentWeek.value, isDayCompleted, focusInput);
+                if (satReview.startSaturdayReview) satReview.startSaturdayReview(currentWeek.value, isDayCompleted, focusInput);
             } else {
                 resetDayProgress();
             }
         };
 
         const resetDayProgress = (forceStartOver = false) => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             stage3Active.value = false;
             const firstUnlearnedIdx = currentWordList.value.findIndex(w => !wordsStore.isLearned(w));
 
@@ -236,7 +251,7 @@ createApp({
                     }
 
                     await wordsStore.safeSaveImagesToIDB(extractedImages);
-                    wordsStore.imageMap.value = extractedImages;
+                    if (isRef(wordsStore.imageMap)) wordsStore.imageMap.value = extractedImages;
                     wordsStore.parseAndSaveWords(raw);
 
                 } else if (file.name.toLowerCase().endsWith('.json')) {
@@ -246,7 +261,7 @@ createApp({
                             let text = event.target.result.replace(/^﻿/, '');
                             const raw = JSON.parse(text);
                             await wordsStore.safeSaveImagesToIDB({});
-                            wordsStore.imageMap.value = {};
+                            if (isRef(wordsStore.imageMap)) wordsStore.imageMap.value = {};
                             wordsStore.parseAndSaveWords(raw);
                         } catch (err) {
                             alert(`❌ JSON 문법 오류: ${err.message}`);
@@ -427,7 +442,8 @@ createApp({
             }
 
             if (options.length < 3) {
-                const globalPool = wordsStore.allWords.value.filter(w => !options.includes(w.english));
+                const allW = unref(wordsStore.allWords) || [];
+                const globalPool = allW.filter(w => !options.includes(w.english));
                 const shuffledGlobal = [...globalPool].sort(() => 0.5 - Math.random());
                 for (let i = 0; options.length < 3 && i < shuffledGlobal.length; i++) {
                     options.push(shuffledGlobal[i].english);
@@ -498,11 +514,12 @@ createApp({
                 stage3Active.value = false;
                 isDayCompleted.value = true;
                 if (selectedDay.value === 'Sat') {
-                    if (!satReview.satCompletedWeeks.value.includes(currentWeek.value)) {
-                        satReview.satCompletedWeeks.value.push(currentWeek.value);
+                    const completedWeeks = unref(satReview.satCompletedWeeks);
+                    if (Array.isArray(completedWeeks) && !completedWeeks.includes(currentWeek.value)) {
+                        completedWeeks.push(currentWeek.value);
                     }
                 } else {
-                    currentWordList.value.forEach(w => wordsStore.markAsLearned(w));
+                    currentWordList.value.forEach(w => wordsStore.markAsLearned && wordsStore.markAsLearned(w));
                 }
                 audio.playCorrectSound();
             }
@@ -569,9 +586,9 @@ createApp({
         };
 
         const submitSatAnswer = () => {
-            if (satReview.isInputLocked.value || satReview.feedbackMessage.value) return;
-            if (!satReview.satInputText.value || !satReview.satInputText.value.trim()) return;
-            if (!satReview.satCurrentWord.value) return;
+            if (satReview.isInputLocked?.value || satReview.feedbackMessage?.value) return;
+            if (!satReview.satInputText?.value || !satReview.satInputText.value.trim()) return;
+            if (!satReview.satCurrentWord?.value) return;
 
             satReview.isInputLocked.value = true;
 
@@ -612,7 +629,7 @@ createApp({
             satReview.isSatStageStarted.value = true;
             nextTick(() => {
                 focusInput();
-                if (satReview.satCurrentWord.value) {
+                if (satReview.satCurrentWord?.value) {
                     satReview.satHintText.value = satReview.generateSatHint(satReview.satCurrentWord.value.english);
                     audio.speak(satReview.satCurrentWord.value.english, 0.75);
                     if (satReview.satStage.value === 3) {
@@ -623,7 +640,7 @@ createApp({
         };
 
         const nextSatQuestion = (isCorrect) => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             if (isCorrect) {
                 satReview.satCorrectCount.value++;
             }
@@ -646,17 +663,18 @@ createApp({
             } else if (satReview.satStage.value === 3 && satReview.satWordIndex.value >= satReview.satQuizList.value.length) {
                 isReplayingDay.value = false;
                 isDayCompleted.value = true;
-                if (!satReview.satCompletedWeeks.value.includes(currentWeek.value)) {
-                    satReview.satCompletedWeeks.value.push(currentWeek.value);
+                const completedWeeks = unref(satReview.satCompletedWeeks);
+                if (Array.isArray(completedWeeks) && !completedWeeks.includes(currentWeek.value)) {
+                    completedWeeks.push(currentWeek.value);
                 }
-                satReview.satScores.value[currentWeek.value] = satReview.satCorrectCount.value;
+                if (satReview.satScores?.value) satReview.satScores.value[currentWeek.value] = satReview.satCorrectCount.value;
                 audio.playCorrectSound();
                 return;
             }
 
             focusInput();
 
-            if (satReview.satCurrentWord.value) {
+            if (satReview.satCurrentWord?.value) {
                 satReview.satHintText.value = satReview.generateSatHint(satReview.satCurrentWord.value.english);
                 audio.speak(satReview.satCurrentWord.value.english, 0.75);
                 if (satReview.satStage.value === 3) {
@@ -666,28 +684,46 @@ createApp({
         };
 
         const startSatStage3Only = () => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             stage3Active.value = false;
             isDayCompleted.value = false;
+
+            if (satReview.satCompletedWeeks) {
+                const list = unref(satReview.satCompletedWeeks);
+                if (Array.isArray(list)) {
+                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
+                }
+            }
+
             satReview.satStage.value = 3;
             satReview.satWordIndex.value = 0;
             satReview.satCorrectCount.value = 0;
             satReview.satComboCount.value = 0;
             satReview.satTotalQuestions.value = 25;
             satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
-            satReview.isSatStageStarted.value = false;
+            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
+            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
             focusInput();
         };
 
         const restartSaturdayChallenge = () => {
-            satReview.stopSatTimer();
-            satReview.isInputLocked.value = false;
-            satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(w => String(w) !== String(currentWeek.value));
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
+            activeScreen.value = 'learning';
+            isReplayingDay.value = false;
+            stage3Active.value = false;
             isDayCompleted.value = false;
+
+            if (satReview.satCompletedWeeks) {
+                const list = unref(satReview.satCompletedWeeks);
+                if (Array.isArray(list)) {
+                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
+                }
+            }
+
             satReview.satStage.value = 1;
             satReview.satWordIndex.value = 0;
             satReview.satCorrectCount.value = 0;
@@ -695,32 +731,34 @@ createApp({
             satReview.satTotalQuestions.value = 55;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
-            satReview.isFeedbackCorrect.value = true;
-            satReview.isSatStageStarted.value = false;
+            if (satReview.isFeedbackCorrect) satReview.isFeedbackCorrect.value = true;
+            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
+            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
 
             satReview.satQuizList.value = wordsStore.getWeakWords(currentWeek.value, 15).sort(() => Math.random() - 0.5);
-            if (satReview.satQuizList.value.length === 0) {
+            if (!satReview.satQuizList.value || satReview.satQuizList.value.length === 0) {
                 satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
 
-            if (satReview.satCurrentWord.value) {
+            if (satReview.satCurrentWord?.value) {
                 satReview.satHintText.value = satReview.generateSatHint(satReview.satCurrentWord.value.english);
             }
             focusInput();
         };
 
         const confirmSatReset = () => {
-            satReview.showSatResetModal.value = false;
-            if (satReview.satResetType.value === 'all') {
+            if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
+            const type = unref(satReview.satResetType);
+            if (type === 'all') {
                 restartSaturdayChallenge();
-            } else if (satReview.satResetType.value === 'stage3') {
+            } else if (type === 'stage3') {
                 startSatStage3Only();
             }
         };
 
         const advanceFromSat = () => {
-            satReview.stopSatTimer();
-            const weeks = wordsStore.availableWeeks.value || [];
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
+            const weeks = unref(wordsStore.availableWeeks) || [];
             const weekIdx = weeks.indexOf(currentWeek.value);
             if (weekIdx < weeks.length - 1) {
                 currentWeek.value = weeks[weekIdx + 1];
@@ -731,12 +769,12 @@ createApp({
         };
 
         const advanceToNextDay = () => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             const targetIdx = days.indexOf(selectedDay.value);
             if (targetIdx < days.length - 1) {
                 changeDay(days[targetIdx + 1]);
             } else {
-                const weeks = wordsStore.availableWeeks.value || [];
+                const weeks = unref(wordsStore.availableWeeks) || [];
                 const weekIdx = weeks.indexOf(currentWeek.value);
                 if (weekIdx < weeks.length - 1) {
                     currentWeek.value = weeks[weekIdx + 1];
@@ -786,8 +824,8 @@ createApp({
         };
 
         const getWordImage = (word) => {
-            if (!word) return '';
-            const imgMap = wordsStore.imageMap.value || {};
+            if (!word) return 'https://via.placeholder.com/500x400/fff0f5/db2777?text=No+Image';
+            const imgMap = unref(wordsStore.imageMap) || {};
             if (typeof word === 'string') {
                 const lower = word.toLowerCase().trim();
                 if (imgMap[lower]) return imgMap[lower];
@@ -819,7 +857,7 @@ createApp({
         };
 
         const restartStage1Only = () => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             currentIndex.value = 0;
             currentMode.value = 'practice';
             practiceCount.value = 0;
@@ -833,19 +871,24 @@ createApp({
 
         const resetAllProgress = () => {
             if (confirm('정말로 모든 주차의 학습 진도를 초기화하시겠습니까? 🌸')) {
-                wordsStore.learnedWordIDs.value = [];
-                satReview.satCompletedWeeks.value = [];
-                satReview.satScores.value = {};
+                if (isRef(wordsStore.learnedWordIDs)) wordsStore.learnedWordIDs.value = [];
+                if (isRef(satReview.satCompletedWeeks)) satReview.satCompletedWeeks.value = [];
+                if (isRef(satReview.satScores)) satReview.satScores.value = {};
             }
         };
 
         const resetWeekProgress = (week) => {
             if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸`)) {
                 const wStr = String(week);
-                const weekWordIDs = wordsStore.allWords.value.filter(w => String(w.week) === wStr).map(w => w.id);
-                wordsStore.learnedWordIDs.value = wordsStore.learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
-                satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(wNum => String(wNum) !== wStr);
-                delete satReview.satScores.value[week];
+                const allW = unref(wordsStore.allWords) || [];
+                const weekWordIDs = allW.filter(w => String(w.week) === wStr).map(w => w.id);
+                if (isRef(wordsStore.learnedWordIDs)) {
+                    wordsStore.learnedWordIDs.value = wordsStore.learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
+                }
+                if (isRef(satReview.satCompletedWeeks)) {
+                    satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(wNum => String(wNum) !== wStr);
+                }
+                if (satReview.satScores?.value) delete satReview.satScores.value[week];
             }
         };
 
@@ -855,20 +898,23 @@ createApp({
 
             if (d === 'Sat') {
                 if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸`)) {
-                    satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
-                    delete satReview.satScores.value[w];
-                    satReview.startSaturdayReview(w, isDayCompleted, focusInput);
+                    restartSaturdayChallenge();
                 }
             } else {
                 const targetIdx = days.indexOf(d);
                 const affectedDays = days.slice(targetIdx, 5);
-                const affectedWords = wordsStore.allWords.value.filter(word => String(word.week) === String(w) && affectedDays.includes(word.day));
+                const allW = unref(wordsStore.allWords) || [];
+                const affectedWords = allW.filter(word => String(word.week) === String(w) && affectedDays.includes(word.day));
                 const affectedIDs = affectedWords.map(word => word.id);
 
                 if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸`)) {
-                    wordsStore.learnedWordIDs.value = wordsStore.learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
-                    satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
-                    delete satReview.satScores.value[w];
+                    if (isRef(wordsStore.learnedWordIDs)) {
+                        wordsStore.learnedWordIDs.value = wordsStore.learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
+                    }
+                    if (isRef(satReview.satCompletedWeeks)) {
+                        satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
+                    }
+                    if (satReview.satScores?.value) delete satReview.satScores.value[w];
                     resetDayProgress(true);
                 }
             }
@@ -881,13 +927,13 @@ createApp({
         };
 
         onMounted(async () => {
-            await wordsStore.loadStoredData();
-            satReview.initSatData();
+            if (wordsStore.loadStoredData) await wordsStore.loadStoredData();
+            if (satReview.initSatData) satReview.initSatData();
             window.addEventListener('resize', handleResize);
         });
 
         onUnmounted(() => {
-            satReview.stopSatTimer();
+            if (satReview.stopSatTimer) satReview.stopSatTimer();
             window.removeEventListener('resize', handleResize);
         });
 
