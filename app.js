@@ -6,12 +6,13 @@ const { createApp, ref, computed, nextTick, onMounted, onUnmounted, unref, isRef
 
 createApp({
     setup() {
-        // 글로벌 단일 인스턴스로 동기화
-        window.mySat = satReview;
         
         const wordsStore = useWordsStore();
         const satReview = useSaturdayReview(wordsStore, audio);
 
+        // 글로벌 단일 인스턴스로 동기화
+        window.mySat = satReview;
+        
         const activeScreen = ref('home');
         const currentWeek = ref(1);
         const selectedDay = ref('Mon');
