@@ -758,9 +758,11 @@
         </div>
     </div>
 
-    <!-- 모듈 스크립트 연결 -->
+    <!-- index.html 하단 기존 스크립트 부분 수정 -->
     <script src="db.js"></script>
-    <script src="audio.js"></script>
-    <script src="app.js?v=1.1"></script>
+    <script src="pencil-ocr.js"></script>
+    
+    <!-- type="module" 속성을 추가하여 모듈을 지원하도록 지정합니다. -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
