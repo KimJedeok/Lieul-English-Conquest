@@ -6,13 +6,9 @@ const { createApp, ref, computed, nextTick, onMounted, onUnmounted, unref, isRef
 
 createApp({
     setup() {
-        
         const wordsStore = useWordsStore();
         const satReview = useSaturdayReview(wordsStore, audio);
 
-        // 글로벌 단일 인스턴스로 동기화
-        window.mySat = satReview;
-        
         const activeScreen = ref('home');
         const currentWeek = ref(1);
         const selectedDay = ref('Mon');
@@ -687,46 +683,47 @@ createApp({
             }
         };
 
-        // 3) 3단계만 재도전 실행
         const startSatStage3Only = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-        
-            isDayCompleted.value = false;
             activeScreen.value = 'learning';
-            selectedDay.value = 'Sat';
-        
+            isReplayingDay.value = false;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
+
+            if (satReview.satCompletedWeeks) {
+                const list = unref(satReview.satCompletedWeeks);
+                if (Array.isArray(list)) {
+                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
+                }
+            }
+
             satReview.satStage.value = 3;
             satReview.satWordIndex.value = 0;
+            satReview.satCorrectCount.value = 0;
             satReview.satComboCount.value = 0;
+            satReview.satTotalQuestions.value = 25;
+            satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
-            satReview.isInputLocked.value = false;
-            satReview.isSatStageStarted.value = true;
-        
-            const weekWords = wordsStore.getWords(currentWeek.value, 'Sat');
-            satReview.satQuizList.value = weekWords.sort(() => 0.5 - Math.random());
-        
-            satReview.startSatTimer(() => {
-                if (typeof nextSatQuestion === 'function') nextSatQuestion(false);
-            });
-        
+            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
             focusInput();
         };
 
-        // 2) 전체 재도전 실행
         const restartSaturdayChallenge = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-            
-            // 결과 화면 해제 및 메인 학습 화면 전환
-            isDayCompleted.value = false;
             activeScreen.value = 'learning';
-            selectedDay.value = 'Sat';
-        
-            // 해당 주차 완료 기록 삭제 (String 변환으로 안전하게 비교)
-            const curW = String(currentWeek.value);
-            satReview.satCompletedWeeks.value = satReview.satCompletedWeeks.value.filter(w => String(w) !== curW);
-        
-            // 학습 상태 초기화
+            isReplayingDay.value = false;
+            stage3Active.value = false;
+            isDayCompleted.value = false;
+
+            if (satReview.satCompletedWeeks) {
+                const list = unref(satReview.satCompletedWeeks);
+                if (Array.isArray(list)) {
+                    satReview.satCompletedWeeks.value = list.filter(w => String(w) !== String(currentWeek.value));
+                }
+            }
+
             satReview.satStage.value = 1;
             satReview.satWordIndex.value = 0;
             satReview.satCorrectCount.value = 0;
@@ -734,52 +731,37 @@ createApp({
             satReview.satTotalQuestions.value = 55;
             satReview.satInputText.value = '';
             satReview.feedbackMessage.value = '';
-            satReview.isInputLocked.value = false;
-            satReview.isSatStageStarted.value = false;
-        
-            // 문제 데이터 재구성
+            if (satReview.isFeedbackCorrect) satReview.isFeedbackCorrect.value = true;
+            if (satReview.isInputLocked) satReview.isInputLocked.value = false;
+            if (satReview.isSatStageStarted) satReview.isSatStageStarted.value = false;
+
             satReview.satQuizList.value = wordsStore.getWeakWords(currentWeek.value, 15).sort(() => Math.random() - 0.5);
             if (!satReview.satQuizList.value || satReview.satQuizList.value.length === 0) {
                 satReview.satQuizList.value = wordsStore.getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
-        
+
+            if (satReview.satCurrentWord?.value) {
+                satReview.satHintText.value = satReview.generateSatHint(satReview.satCurrentWord.value.english);
+            }
             focusInput();
         };
 
-        /* ====== [ 추가된 토요일 모달 핸들러 함수 ] ====== */
-        const promptRestartSatAll = () => {
-            if (satReview.satResetType) satReview.satResetType.value = 'all';
-            if (satReview.showSatResetModal) satReview.showSatResetModal.value = true;
-        };
-
-        const promptRestartSatStage3 = () => {
-            if (satReview.satResetType) satReview.satResetType.value = 'stage3';
-            if (satReview.showSatResetModal) satReview.showSatResetModal.value = true;
-        };
-
-        const cancelSatReset = () => {
-            if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
-        };
-
-        // 모달 '시작하기' 클릭 시 동작할 함수
         const confirmSatReset = () => {
-            satReview.showSatResetModal.value = false;
-            if (satReview.satResetType.value === 'all') {
+            if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
+            const type = unref(satReview.satResetType);
+            if (type === 'all') {
                 restartSaturdayChallenge();
-            } else if (satReview.satResetType.value === 'stage3') {
+            } else if (type === 'stage3') {
                 startSatStage3Only();
             }
         };
 
-        // 4) 다음 주차 이동
         const advanceFromSat = () => {
             if (satReview.stopSatTimer) satReview.stopSatTimer();
-            const weeks = Vue.unref(wordsStore.availableWeeks) || [];
-            const curW = String(currentWeek.value);
-            const weekIdx = weeks.findIndex(w => String(w) === curW);
-        
-            if (weekIdx !== -1 && weekIdx < weeks.length - 1) {
-                currentWeek.value = Number(weeks[weekIdx + 1]) || weeks[weekIdx + 1];
+            const weeks = unref(wordsStore.availableWeeks) || [];
+            const weekIdx = weeks.indexOf(currentWeek.value);
+            if (weekIdx < weeks.length - 1) {
+                currentWeek.value = weeks[weekIdx + 1];
                 changeDay('Mon');
             } else {
                 activeScreen.value = 'home';
@@ -959,7 +941,6 @@ createApp({
             ...wordsStore,
             ...satReview,
             ...audio,
-            ...satReview,
             activeScreen, currentWeek, selectedDay, days, isDayCompleted, isReplayingDay,
             currentIndex, currentMode, practiceText, practiceCount, quizText, quizSubStage,
             quizPart1Count, quizPart2Count, soundBlindFailCount, hintLevel, triggerHint,
@@ -973,18 +954,9 @@ createApp({
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             submitSatAnswer, startSatStage, nextSatQuestion, startSatStage3Only,
-            restartSaturdayChallenge, promptRestartSatAll, promptRestartSatStage3, cancelSatReset, confirmSatReset, advanceFromSat, advanceToNextDay,
+            restartSaturdayChallenge, confirmSatReset, advanceFromSat, advanceToNextDay,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ,
-            nextStage3Question, getWordImage, handleImgError, focusInput,
-            // 낱개 반응형 변수 연결
-            showSatResetModal: satReview.showSatResetModal,
-            satResetType: satReview.satResetType,
-            
-            // 실행 함수 연결
-            promptRestartSatAll,
-            promptRestartSatStage3,
-            confirmSatReset,
-            cancelSatReset: satReview.cancelSatReset
+            nextStage3Question, getWordImage, handleImgError, focusInput
         };
     }
 }).mount('#app');
