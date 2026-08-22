@@ -155,7 +155,7 @@ createApp({
 
         const startSatStage = () => {
             isSatStageStarted.value = true;
-            satTotalQuestions.value = satStage.value === 3 ? 25 : 15;
+            // satTotalQuestions.value = satStage.value === 3 ? 25 : 15;
         
             nextTick(() => {
                 focusInput();
@@ -1122,8 +1122,8 @@ createApp({
             const weekWords = getWords(currentWeek.value, 'Sat');
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
         
-            if (isCompleted) {
-                isDayCompleted.value = true;
+            // 이미 완료된 주차를 다시 들어왔을 때만 기존 기록으로 복원 (진행 중 완료 시 덮어쓰기 방지)
+            if (isCompleted && isDayCompleted.value && !isSatStageStarted.value && satWordIndex.value === 0) {
                 satQuizList.value = weekWords;
                 satTotalQuestions.value = weekWords.length;
                 
