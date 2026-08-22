@@ -1372,6 +1372,16 @@ createApp({
             stopSatTimer();
             showSatResetModal.value = false;
             
+            // ⭐ 1. 학습 완료 플래그 해제 및 저장된 완수 기록 제거
+            isDayCompleted.value = false;
+            satCompletedWeeks.value = satCompletedWeeks.value.filter(
+                w => String(w) !== String(currentWeek.value)
+            );
+            delete satScores.value[currentWeek.value];
+        
+            // ⭐ 2. 단계 시작 버튼 대기 상태로 초기화
+            isSatStageStarted.value = false;
+            
             satCorrectCount.value = 0;
             satWordIndex.value = 0;
             satComboCount.value = 0;
@@ -1381,18 +1391,23 @@ createApp({
             if (satResetType.value === 'stage3') {
                 satStage.value = 3;
                 satTotalQuestions.value = 25;
-                satQuizList.value = getWeakWords(25);
-                startSatTimer();
+                satQuizList.value = getWeakWords(25).sort(() => Math.random() - 0.5);
+                if (satQuizList.value.length === 0) {
+                    satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+                }
             } else {
                 satStage.value = 1;
                 satTotalQuestions.value = 55;
-                satQuizList.value = getWeakWords(15);
+                satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
+                if (satQuizList.value.length === 0) {
+                    satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => Math.random() - 0.5);
+                }
             }
             
             if (satStage.value === 1 && satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
             }
-
+        
             isInputLocked.value = false;
             focusInput();
         };
