@@ -368,7 +368,7 @@
                         </div>
             
                         <!-- 음성 재생 버튼 -->
-                        <button @click="satCurrentWord && speak(satCurrentWord?.english, 0.75)" class="mb-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-sm font-bold transition flex items-center gap-1 mx-auto">
+                        <button @click="satCurrentWord && speak(satCurrentWord?.english, 0.75); focusInput()" class="mb-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-sm font-bold transition flex items-center gap-1 mx-auto">
                             🔊 단어 소리 다시 듣기
                         </button>
             
@@ -476,7 +476,7 @@
                              class="text-xs font-extrabold text-purple-500"
                              v-html="'(' + getHighlightedExampleMeaning(currentStage3Item.word) + ')'">
                         </div>
-                        <button @click="speakSequence(currentStage3Item.word.english, currentStage3Item.word.example)" class="text-xs font-extrabold text-pink-600 bg-white hover:bg-pink-50 px-3 py-1 rounded-lg border border-pink-200 transition inline-flex items-center gap-1">
+                        <button @click="speakSequence(currentStage3Item.word.english, currentStage3Item.word.example); focusInput()" class="text-xs font-extrabold text-pink-600 bg-white hover:bg-pink-50 px-3 py-1 rounded-lg border border-pink-200 transition inline-flex items-center gap-1">
                             🔊 천천히 전체 듣기 🌸
                         </button>
                     </div>
@@ -529,7 +529,7 @@
                                 <div class="bg-gradient-to-br from-pink-50 to-purple-50 p-3 rounded-2xl text-center space-y-0.5 border border-pink-100 flex-shrink-0">
                                     <div class="flex items-center justify-center gap-2">
                                         <span class="text-2xl md:text-3xl font-black text-purple-900">{{ currentWord.english }}</span>
-                                        <button @click="speak(currentWord.english, 0.75)" class="bg-white p-2 rounded-full text-pink-500 text-base hover:bg-pink-100 shadow-sm transition">🔊</button>
+                                        <button @click="speak(currentWord.english, 0.75); focusInput()" class="bg-white p-2 rounded-full text-pink-500 text-base hover:bg-pink-100 shadow-sm transition">🔊</button>
                                     </div>
                                     <div class="text-lg md:text-xl font-extrabold text-pink-500">{{ currentWord.meaning }}</div>
                                 </div>
@@ -537,7 +537,7 @@
                                 <div v-if="currentWord.example" class="bg-white border border-purple-100 p-2.5 rounded-2xl text-left space-y-1 shadow-sm flex-1 overflow-y-auto">
                                     <div class="flex justify-between items-center">
                                         <span class="text-[11px] font-extrabold text-purple-400">💬 오늘의 예문</span>
-                                        <button @click="speak(currentWord.example, 0.65)" class="text-pink-500 font-extrabold text-[11px] flex items-center gap-0.5 bg-pink-50 hover:bg-pink-100 px-2 py-0.5 rounded-md border border-pink-100 transition">
+                                        <button @click="speak(currentWord.example, 0.65); focusInput()" class="text-pink-500 font-extrabold text-[11px] flex items-center gap-0.5 bg-pink-50 hover:bg-pink-100 px-2 py-0.5 rounded-md border border-pink-100 transition">
                                             🔊 천천히 듣기
                                         </button>
                                     </div>
@@ -651,7 +651,7 @@
                                 <p class="text-[11px] text-purple-200 font-medium">눈을 감고 발음에 집중해서 스펠링을 써보세요!</p>
                             </div>
 
-                            <button @click="speak(currentWord.english, 0.75)" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-sm transition inline-flex items-center justify-center gap-1 w-fit mx-auto">
+                            <button @click="speak(currentWord.english, 0.75); focusInput()" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-sm transition inline-flex items-center justify-center gap-1 w-fit mx-auto">
                                 <span>🔊 발음 들려주기</span>
                             </button>
 
