@@ -1327,16 +1327,42 @@ createApp({
         
         const confirmSatReset = () => {
             showSatResetModal.value = false;
-            if (satResetType.value === 'all') {
-                restartSaturdayChallenge();
-            } else if (satResetType.value === 'stage3') {
-                startSatStage3Only();
+            satCorrectCount.value = 0; // 누적 정답수 초기화
+            satWordIndex.value = 0;
+            satComboCount.value = 0;
+        
+            if (satResetType.value === 'stage3') {
+                // 3단계만 다시 할 때는 최종 분모를 25로 설정 (정답률 = 맞춘개수 / 25 * 100)
+                satStage.value = 3;
+                satTotalQuestions.value = 25; 
+                satQuizList.value = getWeakWords(25);
+                startSatTimer();
+            } else {
+                // 전체 재도전 시 최종 분모를 55로 설정 (정답률 = 맞춘개수 / 55 * 100)
+                satStage.value = 1;
+                satTotalQuestions.value = 55; 
+                satQuizList.value = getWeakWords(15);
             }
+            
+            satCurrentWord.value = satQuizList.value[0];
+            isInputLocked.value = false;
         };
         
         const cancelSatReset = () => {
             showSatResetModal.value = false;
         };
+
+        // [1] 화면 상단 UI 전용 (전체 점수 계산에 영향을 주지 않음)
+        const satStageTotalQuestions = computed(() => {
+            // 3단계 재도전 모드일 경우 stage와 상관없이 25개 표시
+            if (satResetType.value === 'stage3') return 25; 
+        
+            // 일반 진행 시 단계별 목표 문제 수 반환
+            if (satStage.value === 1) return 15;
+            if (satStage.value === 2) return 15;
+            if (satStage.value === 3) return 25;
+            return 15;
+        });
                 
         return {
             activeScreen, allWords, learnedWordIDs, satCompletedWeeks, savedDate, currentWeek, selectedDay, days,
@@ -1362,7 +1388,8 @@ createApp({
             startSatStage3Only,
             advanceFromSat,
             playFanfareSound, playSadSound, isInputLocked,
-            showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset
+            showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
+            satStageTotalQuestions,
         };
     }
 }).mount('#app');
