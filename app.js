@@ -746,6 +746,21 @@ createApp({
             focusInput();
         };
 
+        /* ====== [ 추가된 토요일 모달 핸들러 함수 ] ====== */
+        const promptRestartSatAll = () => {
+            if (satReview.satResetType) satReview.satResetType.value = 'all';
+            if (satReview.showSatResetModal) satReview.showSatResetModal.value = true;
+        };
+
+        const promptRestartSatStage3 = () => {
+            if (satReview.satResetType) satReview.satResetType.value = 'stage3';
+            if (satReview.showSatResetModal) satReview.showSatResetModal.value = true;
+        };
+
+        const cancelSatReset = () => {
+            if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
+        };
+
         const confirmSatReset = () => {
             if (satReview.showSatResetModal) satReview.showSatResetModal.value = false;
             const type = unref(satReview.satResetType);
@@ -954,7 +969,7 @@ createApp({
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
             submitSatAnswer, startSatStage, nextSatQuestion, startSatStage3Only,
-            restartSaturdayChallenge, confirmSatReset, advanceFromSat, advanceToNextDay,
+            restartSaturdayChallenge, promptRestartSatAll, promptRestartSatStage3, cancelSatReset, confirmSatReset, advanceFromSat, advanceToNextDay,
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ,
             nextStage3Question, getWordImage, handleImgError, focusInput
         };
