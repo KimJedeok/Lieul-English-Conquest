@@ -101,6 +101,7 @@ createApp({
         const allWords = ref([]);
         const learnedWordIDs = ref([]);
         const satCompletedWeeks = ref([]);
+        const satScores = ref({}); // 👈 추가: 주차별 토요일 점수 저장 객체
         const savedDate = ref('');
         const imageMap = ref({});
         const currentWeek = ref(1);
@@ -203,6 +204,10 @@ createApp({
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
+
+                // 👈 추가: 최종 점수를 해당 주차 키값으로 저장
+                satScores.value[currentWeek.value] = satCorrectCount.value;
+                
                 playCorrectSound();
                 return;
             }
@@ -306,6 +311,10 @@ createApp({
                 if (savedDateVal) savedDate.value = savedDateVal;
                 if (savedStats) wordStats.value = JSON.parse(savedStats);
 
+                // 👈 아래 2줄 추가
+                const savedSatScores = localStorage.getItem('vocab_sat_scores');
+                if (savedSatScores) satScores.value = JSON.parse(savedSatScores);
+
                 imageMap.value = await safeLoadImagesFromIDB();
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
@@ -328,6 +337,13 @@ createApp({
         watch(satCompletedWeeks, (newVal) => {
             try {
                 localStorage.setItem('vocab_sat_completed', JSON.stringify(newVal));
+            } catch (e) {}
+        }, { deep: true });
+
+        // 👈 아래 watch 블록 추가
+        watch(satScores, (newVal) => {
+            try {
+                localStorage.setItem('vocab_sat_scores', JSON.stringify(newVal));
             } catch (e) {}
         }, { deep: true });
 
@@ -1126,17 +1142,17 @@ createApp({
             if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
+                satTotalQuestions.value = 55;
                 
-                // 새로고침이나 홈에서 재진입 시 기존 점수가 유지되어 있다면 그대로 사용하고,
-                // 점수 기록이 비어있을 때만 복원합니다.
-                if (!satCorrectCount.value) {
-                    satTotalQuestions.value = 55;
+                // 👈 [수정] 저장된 점수가 있으면 우선 복원, 없을 때만 fallback 계산
+                if (satScores.value[currentWeek.value] !== undefined) {
+                    satCorrectCount.value = satScores.value[currentWeek.value];
+                } else if (!satCorrectCount.value) {
                     const correctWordCount = weekWords.filter(w => {
                         const stat = wordStats.value[w.id];
                         return stat && stat.correct > 0;
                     }).length;
                     
-                    // 55문항 기준 비율 계산
                     satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
                 }
                 return; // 1단계 진행 코드로 내려가지 않고 종료
@@ -1347,7 +1363,7 @@ createApp({
             getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
-            nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge,
+            nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge, satScores,
             isSatStageStarted, startSatStage,
             playTypingSound,
             startSatStage3Only,
