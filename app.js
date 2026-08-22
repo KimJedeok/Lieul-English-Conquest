@@ -1138,11 +1138,15 @@ createApp({
 
             const weekWords = getWords(currentWeek.value, 'Sat');
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
-        
+
+            // 취약 단어 및 전체 단어 수 기반 동적 문제 수 산출
+            const weakList = getWeakWords(15);
+            const calculatedTotal = (weakList.length * 2) + weekWords.length;
+                    
             if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
-                satTotalQuestions.value = 55;
+                satTotalQuestions.value = calculatedTotal || 55; // 👈 동적 문제 수 설정
                 
                 if (satScores.value[currentWeek.value] !== undefined) {
                     satCorrectCount.value = satScores.value[currentWeek.value];
@@ -1162,7 +1166,7 @@ createApp({
             satWordIndex.value = 0;
             satCorrectCount.value = 0;
             satComboCount.value = 0;
-            satTotalQuestions.value = 55;
+            satTotalQuestions.value = calculatedTotal || 55; // 👈 동적 문제 수 설정
             satInputText.value = '';
             feedbackMessage.value = '';
             isFeedbackCorrect.value = true;
@@ -1241,7 +1245,8 @@ createApp({
             if (isInputLocked.value || feedbackMessage.value) return; 
             if (!satInputText.value || !satInputText.value.trim()) return;
             if (!satCurrentWord.value) return;
-        
+
+            stopSatTimer(); // 👈 제출 즉시 타이머를 멈춰 타임아웃 중복 실행을 방지합니다.
             isInputLocked.value = true;
 
             const userInput = satInputText.value.trim().toLowerCase();
