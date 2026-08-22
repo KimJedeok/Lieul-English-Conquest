@@ -1122,19 +1122,27 @@ createApp({
             const weekWords = getWords(currentWeek.value, 'Sat');
             const isCompleted = satCompletedWeeks.value.some(w => String(w) === String(currentWeek.value));
         
-            // 이미 완료된 주차를 다시 들어왔을 때만 기존 기록으로 복원 (진행 중 완료 시 덮어쓰기 방지)
-            if (isCompleted && isDayCompleted.value && !isSatStageStarted.value && satWordIndex.value === 0) {
+            // ⭕ [수정] 이미 완료된 주차라면 즉시 결과 화면(isDayCompleted = true)을 띄웁니다.
+            if (isCompleted) {
+                isDayCompleted.value = true;
                 satQuizList.value = weekWords;
-                satTotalQuestions.value = weekWords.length;
                 
-                satCorrectCount.value = weekWords.filter(w => {
-                    const stat = wordStats.value[w.id];
-                    return stat && stat.correct > 0;
-                }).length;
-        
-                return;
+                // 새로고침이나 홈에서 재진입 시 기존 점수가 유지되어 있다면 그대로 사용하고,
+                // 점수 기록이 비어있을 때만 복원합니다.
+                if (!satCorrectCount.value) {
+                    satTotalQuestions.value = 55;
+                    const correctWordCount = weekWords.filter(w => {
+                        const stat = wordStats.value[w.id];
+                        return stat && stat.correct > 0;
+                    }).length;
+                    
+                    // 55문항 기준 비율 계산
+                    satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
+                }
+                return; // 1단계 진행 코드로 내려가지 않고 종료
             }
         
+            // --- 미완료 주차일 경우 1단계 새로 시작 ---        
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
