@@ -319,10 +319,10 @@
                         <div class="bg-purple-50/60 p-3 rounded-xl border border-purple-100 space-y-1">
                             <h4 class="font-extrabold text-purple-900 text-xs flex items-center gap-1">💡 학습 안내</h4>
                             <p v-if="satStage === 1" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
-                                주간 취약 단어를 집중 복습합니다.<br>알파벳이 무작위(30~50%)로 가려진 힌트를 보고 단어를 완성해보세요!
+                                주간 취약 단어를 집중적으로 복습합니다.<br>알파벳이 랜덤(30~50%)으로 가려진 힌트를 보고 단어를 완성해보세요!
                             </p>
                             <p v-else-if="satStage === 2" class="text-[11px] text-purple-700 leading-relaxed font-semibold">
-                                텍스트 힌트가 지워집니다.<br>오직 단어 소리와 뜻만 보고 정확한 스펠링을 작성해보세요!
+                                알파벳 글자 힌트는 주지 않습니다.<br>오직 단어 소리와 뜻만 보고 정확한 스펠링을 작성해보세요!
                             </p>
                             <p v-else class="text-[11px] text-purple-700 leading-relaxed font-semibold">
                                 최종 스피드 테스트입니다.<br>문제당 <b>10초 제한시간</b> 내에 소리를 듣고 빠르게 답을 입력하세요!
@@ -363,8 +363,11 @@
                     <!-- 문제 풀이 진행 영역 -->
                     <div v-else class="w-full text-center">
                         <!-- 진행률 표시 -->
-                        <div class="text-xs font-bold text-indigo-500 mb-2">
-                            QUESTION {{ satWordIndex + 1 }} / {{ satTotalQuestions }}
+                        <!-- 토요일 학습 상단 헤더 / 진행율 영역 -->
+                        <div class="flex justify-between items-center text-xs font-bold text-purple-700 mb-2">
+                            <span>STAGE {{ satStage }}</span>
+                            <!-- 55 고정 대신 단계별 문제수(15 / 15 / 25) 표시 -->
+                            <span>Question {{ satWordIndex + 1 }} / {{ satStageTotalQuestions }}</span>
                         </div>
             
                         <!-- 음성 재생 버튼 -->
@@ -387,22 +390,23 @@
                             뜻: {{ satCurrentWord?.meaning }}
                         </div>
             
-                        <!-- 정답 입력 양식 -->
-                        <div class="max-w-xs mx-auto space-y-2">
-                            <input ref="satInput" 
-                                   v-model="satInputText" 
-                                   @input="playTypingSound"
-                                   @keyup.enter="submitSatAnswer" 
-                                   type="text" 
-                                   autocapitalize="off"
-                                   autocorrect="off"
-                                   spellcheck="false"
-                                   autocomplete="off"
-                                   placeholder="스펠링을 입력하세요" 
-                                   class="w-full h-11 px-3 bg-white border-2 border-pink-300 rounded-xl font-bold text-lg text-purple-900 text-center focus:outline-none focus:border-purple-500 shadow-inner">
-                            
-                            <button @click="submitSatAnswer" class="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold py-2.5 rounded-xl shadow-md text-sm transition">
-                                정답 제출하기 ✨
+                        <!-- 토요일 학습 입력 영역 -->
+                        <div class="space-y-3">
+                            <input 
+                                type="text" 
+                                v-model="satInputText"
+                                :disabled="isInputLocked"
+                                @keyup.enter="submitSatAnswer"
+                                placeholder="영어 단어를 입력하세요"
+                                class="w-full px-4 py-3 border-2 border-purple-200 rounded-2xl text-center text-lg font-bold focus:outline-none focus:border-purple-500 transition disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            />
+                        
+                            <button 
+                                @click="submitSatAnswer"
+                                :disabled="isInputLocked"
+                                class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl shadow-md transition disabled:bg-purple-300 disabled:cursor-not-allowed"
+                            >
+                                정답 제출하기
                             </button>
                         </div>
                     </div>
