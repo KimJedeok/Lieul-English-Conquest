@@ -733,40 +733,29 @@
             </div>
         </div>
         
-        <!-- 토요일 학습 재도전 안내 모달 -->
-        <div v-if="showSatResetModal" v-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-pink-100 transform transition-all scale-100">
-                
-                <!-- 아이콘 -->
-                <div class="w-16 h-16 bg-pink-100 text-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
-                    🔄
+        <!-- ==================== [ SATURDAY RESET MODAL ] ==================== -->
+        <div v-if="showSatResetModal" v-cloak class="fixed inset-0 bg-purple-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 text-center border-4 border-pink-100">
+                <div class="text-4xl animate-bounce">
+                    {{ satResetType === 'all' ? '🔄' : '⚡' }}
                 </div>
-                
-                <!-- 타이틀 -->
-                <h3 class="text-xl font-black text-slate-800 mb-2">
-                    {{ satResetType === 'all' ? '토요일 챌린지 재도전' : '3단계 스피드 재도전' }}
+                <h3 class="text-base font-extrabold text-purple-900">
+                    {{ satResetType === 'all' ? '토요일 챌린지 전체 재도전' : '3단계 스피드 게임 재도전' }}
                 </h3>
-                
-                <!-- 안내 메시지 -->
-                <p class="text-sm text-slate-600 mb-6 leading-relaxed">
-                    이전 토요일 학습 기록이 초기화되며<br>
-                    <span class="text-pink-600 font-extrabold underline underline-offset-4 decoration-pink-300">처음부터 다시 기록</span>됩니다.<br>
-                    계속 진행하시겠어요? 🌸
+                <p class="text-xs text-purple-600 leading-relaxed font-semibold">
+                    {{ satResetType === 'all' ? '1단계부터 다시 시작하시겠습니까?' : '3단계 스피드 테스트를 다시 시작하시겠습니까?' }}<br>
+                    <span class="text-[11px] text-pink-500 font-bold">(기존 완료 기록이 초기화됩니다 ✨)</span>
                 </p>
-                
-                <!-- 버튼 영역 -->
-                <div class="flex gap-3">
-                    <button @click="cancelSatReset" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition">
+                <div class="flex gap-2 pt-1">
+                    <button @click="cancelSatReset" class="flex-1 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs transition border border-purple-200">
                         취소
                     </button>
-                    <button @click="confirmSatReset" class="flex-1 py-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-2xl shadow-lg shadow-pink-200 transition">
-                        네, 다시할게요!
+                    <button @click="confirmSatReset" class="flex-1 py-2 bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold rounded-xl text-xs shadow-md transition">
+                        시작하기 ✨
                     </button>
                 </div>
-                
             </div>
         </div>
-
     </div>
 
     <!-- 모듈 스크립트 연결 -->
