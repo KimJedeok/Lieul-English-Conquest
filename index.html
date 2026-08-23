@@ -332,7 +332,7 @@
                         <!-- 정답/오답 상세 피드백 -->
                         <div v-if="feedbackMessage" 
                              :class="isFeedbackCorrect ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'" 
-                             class="p-4 rounded-xl border-2 text-sm font-bold shadow-sm transition-all mt-4">
+                             class="w-full break-words whitespace-normal p-4 rounded-xl border-2 text-sm font-bold shadow-sm transition-all mt-4">
                             {{ feedbackMessage }}
                         </div>
                     </div>
