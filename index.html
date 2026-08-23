@@ -20,9 +20,6 @@
 
     <!-- 필기 인식 전용 파일 -->
     <script src="pencil-ocr.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
 </head>
 <body class="text-slate-700 antialiased">
     <div id="app">
@@ -394,6 +391,7 @@
                                 type="text" 
                                 v-model="satInputText"
                                 :disabled="isInputLocked"
+                                autocapitalize="none"
                                 @keyup.enter="submitSatAnswer"
                                 placeholder="영어 단어를 입력하세요"
                                 class="w-full px-4 py-3 border-2 border-purple-200 rounded-2xl text-center text-lg font-bold focus:outline-none focus:border-purple-500 transition disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
