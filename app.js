@@ -1159,7 +1159,7 @@ createApp({
         const satStageTitle = computed(() => {
             if (satStage.value === 1) return '🎯 1단계: 취약 단어 집중 공략 (힌트 제공)';
             if (satStage.value === 2) return '⚡ 2단계: 블라인드 사운드 리콜 (사운드 집중)';
-            return '🔥 3단계: 5초 스피드 타임어택 (스피드 게임)';
+            return '🔥 3단계: 15초 스피드 타임어택 (스피드 게임)';
         });
 
         const satStageThemeClass = computed(() => {
