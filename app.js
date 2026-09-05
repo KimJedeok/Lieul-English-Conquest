@@ -121,7 +121,7 @@ createApp({
         const isFeedbackCorrect = ref(true);
         const satComboCount = ref(0);
         const satInputText = ref('');
-        const satTimer = ref(10);
+        const satTimer = ref(15);
         let satTimerInterval = null;
 
         const timerDisplay = computed(() => {
@@ -140,7 +140,7 @@ createApp({
         const startSatTimer = () => {
             stopSatTimer();
             if (satStage.value !== 3) return;
-            satTimer.value = 10;
+            satTimer.value = 15;
             satTimerInterval = setInterval(() => {
                 satTimer.value--;
                 if (satTimer.value <= 0) {
