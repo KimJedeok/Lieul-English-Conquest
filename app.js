@@ -1114,7 +1114,7 @@ createApp({
             const weakList = getWeakWords(15);
             const calculatedTotal = (weakList.length * 2) + weekWords.length;
                     
-            if (isCompleted) {
+          /*  if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
                 satTotalQuestions.value = calculatedTotal || 55;
@@ -1130,8 +1130,34 @@ createApp({
                     satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
                 }
                 return;
+            }*/
+            if (isCompleted) {
+                isDayCompleted.value = true;
+                satQuizList.value = weekWords;
+                
+                const savedScore = satScores.value[currentWeek.value];
+                
+                if (savedScore !== undefined && savedScore !== null) {
+                    if (typeof savedScore === 'object') {
+                        // ⭐ 3단계 전용(25문항) 또는 전체(55문항) 복원
+                        satCorrectCount.value = savedScore.correct;
+                        satTotalQuestions.value = savedScore.total;
+                    } else {
+                        // 기존 숫자로 저장되어 있던 기존 데이터 호환
+                        satCorrectCount.value = Number(savedScore);
+                        satTotalQuestions.value = calculatedTotal || 55;
+                    }
+                } else {
+                    satTotalQuestions.value = calculatedTotal || 55;
+                    const correctWordCount = weekWords.filter(w => {
+                        const stat = wordStats.value[w.id];
+                        return stat && stat.correct > 0;
+                    }).length;
+                    satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
+                }
+                return;
             }
-        
+            
             isDayCompleted.value = false;
             satStage.value = 1;
             satWordIndex.value = 0;
@@ -1359,7 +1385,12 @@ createApp({
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
-                satScores.value[currentWeek.value] = satCorrectCount.value;
+                
+                //satScores.value[currentWeek.value] = satCorrectCount.value;
+                satScores.value[currentWeek.value] = {
+                correct: satCorrectCount.value,
+                total: satTotalQuestions.value
+                };
                 playFanfareSound();
             }
         };
