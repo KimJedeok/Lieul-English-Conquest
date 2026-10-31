@@ -2,8 +2,10 @@ const { createApp, ref, computed, watch, nextTick, onMounted, onUnmounted } = Vu
 
 createApp({
     setup() {
-        // [오디오 컨텍스트 싱글톤]
+        // [오디오 컨텍스트 싱글톤 & 메모리 누수 방지 변수]
         let audioCtx = null;
+        let activeUtterances = []; // 크롬/엣지 Garbage Collection 버그 방지용 변수
+        
         const getAudioContext = () => {
             if (!audioCtx) {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -14,63 +16,79 @@ createApp({
             }
             return audioCtx;
         };
-
+        
         const speak = (text, rate = 0.75, onEndCallback = null) => {
             if (!('speechSynthesis' in window) || !text) {
                 if (onEndCallback) onEndCallback();
                 return;
             }
             window.speechSynthesis.cancel();
+            activeUtterances = []; // 이전 객체 정리
+        
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'en-US';
             utterance.rate = rate;
+            activeUtterances.push(utterance); // 메모리 유지
             
-            if (onEndCallback) {
-                utterance.onend = () => onEndCallback();
-                utterance.onerror = () => onEndCallback();
-            }
+            utterance.onend = () => {
+                activeUtterances = [];
+                if (onEndCallback) onEndCallback();
+            };
+            utterance.onerror = () => {
+                activeUtterances = [];
+                if (onEndCallback) onEndCallback();
+            };
             window.speechSynthesis.speak(utterance);
         };
-
-        // 🔊 문장 2회 천천히 연속 재생 (0.8초 지연 간격)
+        
+        // 🔊 문장 2회 천천히 연속 재생 (Edge/Chrome 멈춤 방지 완벽 처리)
         const speakSentenceTwice = (sentence, onComplete = null) => {
             if (!('speechSynthesis' in window) || !sentence) {
                 if (onComplete) onComplete();
                 return;
             }
             window.speechSynthesis.cancel();
+            activeUtterances = []; // 메모리 초기화
+            
             isSpeakingAudio.value = true;
-            sttStatusText.value = '🔊 예문 문장을 들려주고 있어요...';
-
+            sttStatusText.value = '🔊 예문 문장을 들려주고 있어요... (1/2)';
+        
             const u1 = new SpeechSynthesisUtterance(sentence);
             u1.lang = 'en-US';
             u1.rate = 0.75;
-
+            activeUtterances.push(u1); // 메모리에 강제 고정
+        
             u1.onend = () => {
+                sttStatusText.value = '🔊 예문 문장을 들려주고 있어요... (2/2)';
                 setTimeout(() => {
                     const u2 = new SpeechSynthesisUtterance(sentence);
                     u2.lang = 'en-US';
                     u2.rate = 0.75;
+                    activeUtterances.push(u2); // 메모리에 강제 고정
+                    
                     u2.onend = () => {
+                        activeUtterances = []; // 완료 후 정리
                         isSpeakingAudio.value = false;
                         if (onComplete) onComplete();
                     };
                     u2.onerror = () => {
+                        activeUtterances = [];
                         isSpeakingAudio.value = false;
                         if (onComplete) onComplete();
                     };
                     window.speechSynthesis.speak(u2);
                 }, 800);
             };
-
+        
             u1.onerror = () => {
+                activeUtterances = [];
                 isSpeakingAudio.value = false;
                 if (onComplete) onComplete();
             };
-
+        
             window.speechSynthesis.speak(u1);
         };
-
+        
         const playSound = (type) => {
             try {
                 const ctx = getAudioContext();
