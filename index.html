@@ -444,7 +444,7 @@
                         <h3 class="text-base font-extrabold text-blue-900">말을 하면 들린 단어의 색깔이 파랗게 채워져요!</h3>
                     </div>
 
-                    <!-- 🎶 노래방 스타일 실시간 하이라이팅 예문 카드 -->
+                    <!-- 🎶 실시간 단어 색상 반응 예문 카드 -->
                     <div class="bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 border-3 border-sky-300 p-6 rounded-3xl text-center space-y-3 shadow-md flex-shrink-0">
                         <div class="text-2xl md:text-3xl font-black leading-relaxed flex flex-wrap justify-center gap-x-2.5 gap-y-1">
                             <span v-for="(word, idx) in currentStage3Item.word.example.split(/\s+/)" 
@@ -732,13 +732,17 @@
             </div>
         </div>
 
-        <!-- ==================== [ SATURDAY RESET MODAL ] ==================== -->
+        <!-- ==================== [ SATURDAY RESET MODAL (안전한 조건문 수정 완료) ] ==================== -->
         <div v-if="showSatResetModal" class="fixed inset-0 bg-blue-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 text-center border-4 border-sky-100">
                 <div class="text-4xl animate-bounce">🔄</div>
                 <h3 class="text-base font-extrabold text-blue-900">토요일 챌린지 재도전</h3>
-                <p class="text-xs text-blue-600 leading-relaxed font-semibold">
-                    {{ satResetType === 'all' ? '1단계부터 주말 챌린지를 처음부터 다시 도전할까요?' : '3단계 스피드 테스트만 다시 도전할까요?' }}
+                
+                <p v-if="satResetType === 'all'" class="text-xs text-blue-600 leading-relaxed font-semibold">
+                    1단계부터 주말 챌린지를 처음부터 다시 도전할까요?
+                </p>
+                <p v-else class="text-xs text-blue-600 leading-relaxed font-semibold">
+                    3단계 스피드 테스트만 다시 도전할까요?
                 </p>
                 
                 <div class="p-3 bg-sky-50 rounded-xl border border-sky-100 text-xs text-sky-800 leading-relaxed font-medium">
@@ -766,6 +770,6 @@
     <!-- 모듈 스크립트 연결 -->
     <script src="db.js"></script>
     <script src="audio.js"></script>
-    <script src="app.js?v=2.2"></script>
+    <script src="app.js?v=2.3"></script>
 </body>
 </html>
