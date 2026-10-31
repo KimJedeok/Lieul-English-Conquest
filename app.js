@@ -2,7 +2,7 @@ const { createApp, ref, computed, watch, nextTick, onMounted, onUnmounted } = Vu
 
 createApp({
     setup() {
-        // [오디오 컨텍스트 관리]
+        // [오디오 컨텍스트 싱글톤]
         let audioCtx = null;
         const getAudioContext = () => {
             if (!audioCtx) {
@@ -15,21 +15,66 @@ createApp({
             return audioCtx;
         };
 
-        // ==================== [ 효과음 및 음성 지원 ] ====================
-        const speak = (text, rate = 0.75) => {
-            if (!('speechSynthesis' in window) || !text) return;
+        const speak = (text, rate = 0.75, onEndCallback = null) => {
+            if (!('speechSynthesis' in window) || !text) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'en-US';
             utterance.rate = rate;
+            
+            if (onEndCallback) {
+                utterance.onend = () => onEndCallback();
+                utterance.onerror = () => onEndCallback();
+            }
             window.speechSynthesis.speak(utterance);
+        };
+
+        // 🔊 문장 2회 천천히 연속 재생 (0.8초 지연 간격)
+        const speakSentenceTwice = (sentence, onComplete = null) => {
+            if (!('speechSynthesis' in window) || !sentence) {
+                if (onComplete) onComplete();
+                return;
+            }
+            window.speechSynthesis.cancel();
+            isSpeakingAudio.value = true;
+            sttStatusText.value = '🔊 예문 문장을 들려주고 있어요...';
+
+            const u1 = new SpeechSynthesisUtterance(sentence);
+            u1.lang = 'en-US';
+            u1.rate = 0.75;
+
+            u1.onend = () => {
+                setTimeout(() => {
+                    const u2 = new SpeechSynthesisUtterance(sentence);
+                    u2.lang = 'en-US';
+                    u2.rate = 0.75;
+                    u2.onend = () => {
+                        isSpeakingAudio.value = false;
+                        if (onComplete) onComplete();
+                    };
+                    u2.onerror = () => {
+                        isSpeakingAudio.value = false;
+                        if (onComplete) onComplete();
+                    };
+                    window.speechSynthesis.speak(u2);
+                }, 800);
+            };
+
+            u1.onerror = () => {
+                isSpeakingAudio.value = false;
+                if (onComplete) onComplete();
+            };
+
+            window.speechSynthesis.speak(u1);
         };
 
         const playSound = (type) => {
             try {
                 const ctx = getAudioContext();
                 if (!ctx) return;
-
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
@@ -69,16 +114,12 @@ createApp({
         const playSadSound = () => playSound('error');
 
         const safeLoadImagesFromIDB = async () => {
-            if (typeof loadImagesFromIDB === 'function') {
-                return await loadImagesFromIDB();
-            }
+            if (typeof loadImagesFromIDB === 'function') return await loadImagesFromIDB();
             return {};
         };
 
         const safeSaveImagesToIDB = async (imgs) => {
-            if (typeof saveImagesToIDB === 'function') {
-                await saveImagesToIDB(imgs);
-            }
+            if (typeof saveImagesToIDB === 'function') await saveImagesToIDB(imgs);
         };
 
         // ==================== [ Base State ] ====================
@@ -95,7 +136,6 @@ createApp({
         
         const isSatStageStarted = ref(false);
 
-        // ==================== [ 토요일 복습 상태 ] ====================
         const satStage = ref(1);
         const satWordIndex = ref(0);
         const satQuizList = ref([]);
@@ -142,9 +182,7 @@ createApp({
                         satHintText.value = generateSatHint(satCurrentWord.value.english);
                     }
                     speak(satCurrentWord.value.english, 0.75);
-                    if (satStage.value === 3) {
-                        startSatTimer();
-                    }
+                    if (satStage.value === 3) startSatTimer();
                 }
             });
         };
@@ -198,13 +236,22 @@ createApp({
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
 
-        // ==================== [ 3단계 STT 음성인식 상태 ] ====================
+        // ==================== [ 3단계 개선된 STT 시스템 ] ====================
         const isListening = ref(false);
-        const sttRecognizedText = ref('');
-        const sttFeedback = ref('');
-        const sttSuccess = ref(false);
-        const isSTTSupported = ref(false);
+        const isSpeakingAudio = ref(false);
+        const isSTTStartedByTouch = ref(false); // 3단계 시작 터치 여부
+        const sttAttemptCount = ref(0); // 시도 횟수 (최대 2회)
         const recognizedWordIndices = ref([]);
+        const aiRecognizedText = ref(''); // AI가 실제 들은 문자열
+        const sttStatusText = ref('시작 버튼을 눌러주세요!');
+        
+        // 피드백 객체 { text, type: 'info' | 'success' | 'warn' | 'error' }
+        const sttFeedbackObj = ref({
+            text: '오디오 소리를 들은 후 크게 따라 말해보세요!',
+            type: 'info'
+        });
+
+        const isSTTSupported = ref(false);
         let recognition = null;
 
         const requestMicPermission = async () => {
@@ -215,7 +262,7 @@ createApp({
                     return true;
                 }
             } catch (err) {
-                alert("🎙️ 마이크 권한이 필요합니다!\n아이패드 [설정] -> [Safari] -> [마이크]에서 '허용'으로 변경해주세요.");
+                alert("🎙️ 마이크 권한이 필요합니다!\n아이패드 [설정] -> [Safari] -> [마이크]에서 '허용'으로 설정해주세요.");
                 return false;
             }
             return true;
@@ -228,15 +275,12 @@ createApp({
                     isSTTSupported.value = true;
                     recognition = new SpeechRecognition();
                     recognition.lang = 'en-US';
-                    recognition.continuous = true;
+                    recognition.continuous = false; // 문장 말하면 0.3초 내 빠른 반응!
                     recognition.interimResults = true;
 
                     recognition.onstart = () => {
                         isListening.value = true;
-                        sttRecognizedText.value = '';
-                        sttFeedback.value = '듣고 있어요... 크게 따라 읽어보세요! 🎙️';
-                        sttSuccess.value = false;
-                        recognizedWordIndices.value = [];
+                        sttStatusText.value = '🎧 듣고 있어요... 큰 소리로 읽어주세요!';
                     };
 
                     recognition.onresult = (event) => {
@@ -244,15 +288,12 @@ createApp({
                         for (let i = event.resultIndex; i < event.results.length; i++) {
                             transcript += event.results[i][0].transcript;
                         }
-                        sttRecognizedText.value = transcript;
+                        aiRecognizedText.value = transcript;
                         updateRealtimeKaraokeHighlight(transcript);
                     };
 
                     recognition.onerror = (event) => {
                         isListening.value = false;
-                        if (event.error === 'no-speech') {
-                            sttFeedback.value = '소리가 잘 들리지 않았어요. 마이크를 다시 누르고 말씀해보세요! 🎙️';
-                        }
                     };
 
                     recognition.onend = () => {
@@ -267,6 +308,7 @@ createApp({
             }
         };
 
+        // 실시간 단어 색상 하이라이트 (어린이 발음 완화 매칭 알고리즘)
         const updateRealtimeKaraokeHighlight = (transcript) => {
             if (!currentStage3Item.value || !currentStage3Item.value.word || !currentStage3Item.value.word.example) return;
 
@@ -277,33 +319,55 @@ createApp({
             const matched = [];
             targetWords.forEach((word, idx) => {
                 const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (cleanWord && recWords.includes(cleanWord)) {
+                // 완화 비교: 철자 포함 또는 발음 부분 일치
+                const isMatch = recWords.some(rw => rw.includes(cleanWord) || cleanWord.includes(rw));
+                if (cleanWord && isMatch) {
                     matched.push(idx);
                 }
             });
 
             recognizedWordIndices.value = matched;
+        };
 
-            if (targetWords.length > 0 && matched.length >= Math.ceil(targetWords.length * 0.7)) {
-                sttSuccess.value = true;
-                sttFeedback.value = '🎉 완벽해요! 모든 단어를 정확하게 말했어요! 🐬⭐';
+        // 터치 기반 3단계 마이크 시작 & 2회 오디오 재생
+        const startStage3SpeakingSession = async () => {
+            const hasPermission = await requestMicPermission();
+            if (!hasPermission) return;
+
+            isSTTStartedByTouch.value = true;
+            sttAttemptCount.value = 0;
+            aiRecognizedText.value = '';
+            recognizedWordIndices.value = [];
+            
+            sttFeedbackObj.value = {
+                text: '🔊 예문 문장을 2번 들려드립니다. 잘 들어보세요!',
+                type: 'info'
+            };
+
+            if (currentStage3Item.value && currentStage3Item.value.word && currentStage3Item.value.word.example) {
+                speakSentenceTwice(currentStage3Item.value.word.example, () => {
+                    // 2회 오디오 청취 완료 후 마이크 자동 가동!
+                    startSTT();
+                });
             }
         };
 
         const startSTT = async () => {
-            const hasPermission = await requestMicPermission();
-            if (!hasPermission) return;
+            if (isSpeakingAudio.value) return;
 
             if (!recognition) initSTT();
             if (!isSTTSupported.value) {
-                alert('이 브라우저는 음성 인식을 지원하지 않습니다. 아래 정답 처리 버튼을 이용해 주세요!');
+                alert('이 브라우저는 음성 인식을 지원하지 않습니다.');
                 return;
             }
 
             try {
-                sttRecognizedText.value = '';
+                aiRecognizedText.value = '';
                 recognizedWordIndices.value = [];
-                sttFeedback.value = '소리 내어 말하면 문장에 색이 채워져요! 🎙️';
+                sttFeedbackObj.value = {
+                    text: '🎙️ 지금 마이크에 대고 크게 읽어보세요!',
+                    type: 'info'
+                };
                 recognition.start();
             } catch (e) {
                 try {
@@ -319,31 +383,73 @@ createApp({
             } catch(e) {}
         };
 
+        // 결과 평가 및 실패 시 시도 횟수 제어 (2회 실패 시 오디오 재재생 후 자동 이동)
         const evaluateSTTFinal = () => {
-            if (sttSuccess.value) {
+            if (!currentStage3Item.value || currentStage3Item.value.type !== 'speaking') return;
+
+            const targetSentence = currentStage3Item.value.word.example;
+            const targetWords = targetSentence.split(/\s+/);
+            const matchedCount = recognizedWordIndices.value.length;
+            const passThreshold = Math.ceil(targetWords.length * 0.65); // 65% 이상 맞추면 정답
+
+            if (matchedCount >= passThreshold) {
+                // 🎉 성공
+                sttFeedbackObj.value = {
+                    text: '🎉 완벽해요! 문장을 정확하게 읽었어요!',
+                    type: 'success'
+                };
                 recordAttempt(currentStage3Item.value.word.id, true);
                 playCorrectSound();
-            } else if (sttRecognizedText.value) {
-                const targetWords = currentStage3Item.value.word.example.split(/\s+/);
-                if (recognizedWordIndices.value.length >= Math.ceil(targetWords.length * 0.5)) {
-                    sttSuccess.value = true;
-                    sttFeedback.value = '👍 참 잘했어요! 거의 다 맞췄어요! 🌊';
-                    recordAttempt(currentStage3Item.value.word.id, true);
-                    playCorrectSound();
+
+                setTimeout(() => {
+                    nextStage3Question();
+                }, 1500);
+
+            } else {
+                sttAttemptCount.value++;
+
+                if (!aiRecognizedText.value || !aiRecognizedText.value.trim()) {
+                    // 묵음 / 소리 미인식
+                    if (sttAttemptCount.value < 2) {
+                        sttFeedbackObj.value = {
+                            text: `👂 소리가 작거나 안 들렸어요! 마이크 가까이서 다시 크게 읽어볼까요? (시도 ${sttAttemptCount.value}/2)`,
+                            type: 'warn'
+                        };
+                        playErrorSound();
+                    } else {
+                        handleFailedStage3Question("소리가 들리지 않았어요");
+                    }
                 } else {
-                    sttFeedback.value = '💡 소리를 조금 더 크고 명확하게 따라해보세요!';
-                    recordAttempt(currentStage3Item.value.word.id, false);
-                    playErrorSound();
+                    // 소리는 들렸으나 발음 다름
+                    if (sttAttemptCount.value < 2) {
+                        sttFeedbackObj.value = {
+                            text: `💡 AI 들은 소리: '${aiRecognizedText.value}' ➔ 조금 더 정확하게 따라해보세요! (시도 ${sttAttemptCount.value}/2)`,
+                            type: 'warn'
+                        };
+                        playErrorSound();
+                    } else {
+                        handleFailedStage3Question(`AI가 '${aiRecognizedText.value}'(으)로 들었어요`);
+                    }
                 }
             }
         };
 
-        const manualPassSTT = () => {
-            if (currentStage3Item.value && currentStage3Item.value.word) {
-                recordAttempt(currentStage3Item.value.word.id, true);
-                playCorrectSound();
-            }
-            nextStage3Question();
+        // 2회 연속 실패 시 자동 대처 로직
+        const handleFailedStage3Question = (reason) => {
+            recordAttempt(currentStage3Item.value.word.id, false);
+            playErrorSound();
+
+            sttFeedbackObj.value = {
+                text: `😢 아쉬워요! (${reason}) 정확한 소리를 들려주고 다음 문제로 넘어갑니다.`,
+                type: 'error'
+            };
+
+            // 정답 오디오 1회 재재생 후 다음 문제로 자동 이동
+            speak(currentStage3Item.value.word.example, 0.75, () => {
+                setTimeout(() => {
+                    nextStage3Question();
+                }, 1500);
+            });
         };
 
         const practiceInput = ref(null);
@@ -929,7 +1035,7 @@ createApp({
             }
         };
 
-        // ==================== [ 3단계 챌린지 생성 ] ====================
+        // ==================== [ 3단계 생성 로직 ] ====================
         const startStage3 = () => {
             const list = [];
             
@@ -956,11 +1062,16 @@ createApp({
 
         const initStage3Question = () => {
             stage3AnswerRevealed.value = false;
-            sttRecognizedText.value = '';
-            sttFeedback.value = '';
-            sttSuccess.value = false;
+            aiRecognizedText.value = '';
             recognizedWordIndices.value = [];
+            isSTTStartedByTouch.value = false;
+            sttAttemptCount.value = 0;
             stopSTT();
+
+            sttFeedbackObj.value = {
+                text: '아래 시작 버튼을 눌러서 예문 오디오를 듣고 시작하세요!',
+                type: 'info'
+            };
 
             nextTick(() => {
                 if (currentStage3Item.value && currentStage3Item.value.word) {
@@ -971,8 +1082,6 @@ createApp({
                             initPencilCanvas('pencilCanvas');
                         }
                         speak(currentStage3Item.value.word.english, 0.75);
-                    } else if (currentStage3Item.value.type === 'speaking') {
-                        speak(currentStage3Item.value.word.example, 0.85);
                     }
                 }
             });
@@ -1164,11 +1273,9 @@ createApp({
 
         const getWeakWords = (count) => {
             let allWeekdayWords = getWords(currentWeek.value, 'Sat') || [];
-
             if (allWeekdayWords.length === 0 && allWords.value) {
                 allWeekdayWords = allWords.value.filter(w => String(w.week) === String(currentWeek.value));
             }
-
             if (allWeekdayWords.length === 0) return [];
 
             const sorted = [...allWeekdayWords].sort((a, b) => {
@@ -1187,7 +1294,6 @@ createApp({
         const generateSatHint = (wordStr) => {
             if (!wordStr) return '';
             const len = wordStr.length;
-            
             const ratio = 0.3 + Math.random() * 0.2;
             const hideCount = Math.max(1, Math.round(len * ratio));
         
@@ -1223,9 +1329,7 @@ createApp({
             if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
-                
                 const savedScore = satScores.value[currentWeek.value];
-                
                 if (savedScore !== undefined && savedScore !== null) {
                     if (typeof savedScore === 'object') {
                         satCorrectCount.value = savedScore.correct;
@@ -1257,7 +1361,6 @@ createApp({
             isSatStageStarted.value = false;
             
             satQuizList.value = getWeakWords(15).sort(() => Math.random() - 0.5);
-           
             if (satQuizList.value.length === 0) {
                 satQuizList.value = getWords(currentWeek.value, 'Sat').sort(() => 0.5 - Math.random());
             }
@@ -1286,7 +1389,6 @@ createApp({
             const len = wordStr.length;
             const hideCount = Math.max(1, Math.round(len * 0.25));
             const chars = wordStr.split('');
-            
             for (let i = 0; i < hideCount; i++) {
                 const targetIdx = Math.floor(len / 2) + i;
                 if (targetIdx < len) chars[targetIdx] = '?';
@@ -1408,18 +1510,14 @@ createApp({
                 satCorrectCount.value++;
                 satComboCount.value++;
                 isFeedbackCorrect.value = true;
-                
                 const randomMsg = satCorrectMessages[Math.floor(Math.random() * satCorrectMessages.length)];
                 feedbackMessage.value = randomMsg;
-                
                 playCorrectSound();
             } else {
                 satComboCount.value = 0;
                 isFeedbackCorrect.value = false;
-                
                 const randomMsg = satIncorrectMessages[Math.floor(Math.random() * satIncorrectMessages.length)];
                 feedbackMessage.value = `${randomMsg} (정답: ${satCurrentWord.value.english})`;
-                        
                 playErrorSound();
             }
         
@@ -1432,12 +1530,9 @@ createApp({
             if (isInputLocked.value) return;
             clearSatFeedbackTimer();
             isInputLocked.value = true;
-            
             satComboCount.value = 0;
             isFeedbackCorrect.value = false;
-            
             feedbackMessage.value = `⏰ 아쉽게 시간 초과! 다음 문제에서 빠르게 도전해봐요! (정답: ${satCurrentWord.value?.english})`;
-            
             playErrorSound();
 
             satFeedbackTimer = setTimeout(() => {
@@ -1468,7 +1563,6 @@ createApp({
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
-                
                 satScores.value[currentWeek.value] = {
                     correct: satCorrectCount.value,
                     total: satTotalQuestions.value
@@ -1481,7 +1575,6 @@ createApp({
             clearSatFeedbackTimer();
             satInputText.value = '';
             feedbackMessage.value = '';
-            
             satWordIndex.value++;
             const currentLimit = satStage.value === 3 ? 25 : 15;
             
@@ -1491,14 +1584,8 @@ createApp({
                 if (satStage.value === 1 && satCurrentWord.value) {
                     satHintText.value = generateSatHint(satCurrentWord.value.english);
                 }
-                
-                if (satStage.value === 3) {
-                    startSatTimer();
-                }
-                
-                if (satCurrentWord.value) {
-                    speak(satCurrentWord.value.english, 0.75);
-                }
+                if (satStage.value === 3) startSatTimer();
+                if (satCurrentWord.value) speak(satCurrentWord.value.english, 0.75);
                 
                 isInputLocked.value = false;
                 focusInput();
@@ -1509,13 +1596,11 @@ createApp({
             clearSatFeedbackTimer();
             stopSatTimer();
             showSatResetModal.value = false;
-            
             isDayCompleted.value = false;
             satCompletedWeeks.value = satCompletedWeeks.value.filter(
                 w => String(w) !== String(currentWeek.value)
             );
             delete satScores.value[currentWeek.value];
-        
             isSatStageStarted.value = false;
             
             satCorrectCount.value = 0;
@@ -1543,7 +1628,6 @@ createApp({
             if (satStage.value === 1 && satCurrentWord.value) {
                 satHintText.value = generateSatHint(satCurrentWord.value.english);
             }
-        
             isInputLocked.value = false;
             focusInput();
         };
@@ -1567,14 +1651,12 @@ createApp({
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge, satScores,
-            isSatStageStarted, startSatStage,
-            playTypingSound,
-            startSatStage3Only,
-            advanceFromSat,
+            isSatStageStarted, startSatStage, playTypingSound, startSatStage3Only, advanceFromSat,
             playFanfareSound, playSadSound, isInputLocked,
             showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
             satStageTotalQuestions, focusInput,
-            isListening, sttRecognizedText, sttFeedback, sttSuccess, isSTTSupported, recognizedWordIndices, startSTT, stopSTT, manualPassSTT
+            isListening, isSpeakingAudio, isSTTStartedByTouch, sttAttemptCount, recognizedWordIndices, aiRecognizedText, sttStatusText, sttFeedbackObj,
+            startStage3SpeakingSession, startSTT, stopSTT, speakSentenceTwice
         };
     }
 }).mount('#app');
