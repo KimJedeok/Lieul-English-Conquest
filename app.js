@@ -25,23 +25,6 @@ createApp({
             window.speechSynthesis.speak(utterance);
         };
 
-        const speakSequence = (word, sentence) => {
-            if (!('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
-            const u1 = new SpeechSynthesisUtterance(word);
-            u1.lang = 'en-US';
-            u1.rate = 0.75;
-            u1.onend = () => {
-                if (sentence) {
-                    const u2 = new SpeechSynthesisUtterance(sentence);
-                    u2.lang = 'en-US';
-                    u2.rate = 0.85;
-                    window.speechSynthesis.speak(u2);
-                }
-            };
-            window.speechSynthesis.speak(u1);
-        };
-
         const playSound = (type) => {
             try {
                 const ctx = getAudioContext();
@@ -215,13 +198,29 @@ createApp({
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
 
-        // ==================== [ 3단계 STT 음성인식 전용 상태 및 예외 보완 ] ====================
+        // ==================== [ 3단계 STT 음성인식 & 노래방 하이라이트 전용 상태 ] ====================
         const isListening = ref(false);
         const sttRecognizedText = ref('');
         const sttFeedback = ref('');
         const sttSuccess = ref(false);
         const isSTTSupported = ref(false);
+        const recognizedWordIndices = ref([]);
         let recognition = null;
+
+        // 아이패드 마이크 권한 요청
+        const requestMicPermission = async () => {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    stream.getTracks().forEach(track => track.stop());
+                    return true;
+                }
+            } catch (err) {
+                alert("🎙️ 마이크 권한이 필요합니다!\n아이패드 [설정] -> [Safari] -> [마이크]에서 '허용'으로 변경해주세요.");
+                return false;
+            }
+            return true;
+        };
 
         const initSTT = () => {
             try {
@@ -230,14 +229,15 @@ createApp({
                     isSTTSupported.value = true;
                     recognition = new SpeechRecognition();
                     recognition.lang = 'en-US';
-                    recognition.continuous = false;
+                    recognition.continuous = true;
                     recognition.interimResults = true;
 
                     recognition.onstart = () => {
                         isListening.value = true;
                         sttRecognizedText.value = '';
-                        sttFeedback.value = '듣고 있어요... 말씀해 주세요! 🎙️';
+                        sttFeedback.value = '듣고 있어요... 크게 따라 읽어보세요! 🎙️';
                         sttSuccess.value = false;
+                        recognizedWordIndices.value = [];
                     };
 
                     recognition.onresult = (event) => {
@@ -246,23 +246,21 @@ createApp({
                             transcript += event.results[i][0].transcript;
                         }
                         sttRecognizedText.value = transcript;
+                        updateRealtimeKaraokeHighlight(transcript);
                     };
 
                     recognition.onerror = (event) => {
                         isListening.value = false;
                         if (event.error === 'no-speech') {
-                            sttFeedback.value = '소리가 잘 들리지 않았어요. 다시 마이크를 누르고 말해볼까요? 🎙️';
-                        } else {
-                            sttFeedback.value = `음성 인식 안내: 다시 시도하시거나 아래 정답 통과 버튼을 누르세요.`;
+                            sttFeedback.value = '소리가 잘 들리지 않았어요. 마이크를 다시 누르고 말씀해보세요! 🎙️';
+                        } else if (event.error === 'not-allowed') {
+                            alert("🎙️ 마이크 접근이 거부되었습니다. 설정에서 마이크를 허용해주세요!");
                         }
-                        playErrorSound();
                     };
 
                     recognition.onend = () => {
                         isListening.value = false;
-                        if (sttRecognizedText.value) {
-                            evaluateSTT();
-                        }
+                        evaluateSTTFinal();
                     };
                 } else {
                     isSTTSupported.value = false;
@@ -272,15 +270,43 @@ createApp({
             }
         };
 
-        const startSTT = () => {
+        const updateRealtimeKaraokeHighlight = (transcript) => {
+            if (!currentStage3Item.value || !currentStage3Item.value.word || !currentStage3Item.value.word.example) return;
+
+            const targetSentence = currentStage3Item.value.word.example;
+            const targetWords = targetSentence.split(/\s+/);
+            const recWords = transcript.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+
+            const matched = [];
+            targetWords.forEach((word, idx) => {
+                const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (cleanWord && recWords.includes(cleanWord)) {
+                    matched.push(idx);
+                }
+            });
+
+            recognizedWordIndices.value = matched;
+
+            if (targetWords.length > 0 && matched.length >= Math.ceil(targetWords.length * 0.7)) {
+                sttSuccess.value = true;
+                sttFeedback.value = '🎉 완벽해요! 모든 단어를 정확하게 말했어요! 🐬⭐';
+            }
+        };
+
+        const startSTT = async () => {
+            const hasPermission = await requestMicPermission();
+            if (!hasPermission) return;
+
             if (!recognition) initSTT();
             if (!isSTTSupported.value) {
-                alert('이 브라우저는 음성 인식을 지원하지 않습니다. 아래 [정답 처리 및 다음으로] 버튼을 이용해 주세요! 🌊');
+                alert('이 브라우저는 음성 인식을 지원하지 않습니다. 아래 정답 처리 버튼을 이용해 주세요!');
                 return;
             }
+
             try {
                 sttRecognizedText.value = '';
-                sttFeedback.value = '말씀해 주세요... 🎙️';
+                recognizedWordIndices.value = [];
+                sttFeedback.value = '소리 내어 말하면 문장에 색이 채워져요! 🎙️';
                 recognition.start();
             } catch (e) {
                 try {
@@ -292,38 +318,26 @@ createApp({
 
         const stopSTT = () => {
             try {
-                if (recognition && isListening.value) {
-                    recognition.stop();
-                }
+                if (recognition && isListening.value) recognition.stop();
             } catch(e) {}
         };
 
-        const evaluateSTT = () => {
-            if (!currentStage3Item.value || !currentStage3Item.value.word) return;
-            const targetWord = currentStage3Item.value.word.english || '';
-            const targetExample = currentStage3Item.value.word.example || targetWord;
-
-            const rec = sttRecognizedText.value.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-            const word = targetWord.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-            const example = targetExample.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-
-            const hasWord = rec.includes(word);
-            const exampleWords = example.split(/\s+/).filter(Boolean);
-            const recWords = rec.split(/\s+/).filter(Boolean);
-            const matchedCount = exampleWords.filter(w => recWords.includes(w)).length;
-            const ratio = matchedCount / Math.max(1, exampleWords.length);
-
-            // 초등 5학년 맞춤형 유연 채점 로직
-            if (hasWord && (ratio >= 0.4 || exampleWords.length <= 3 || recWords.length === 1)) {
-                sttSuccess.value = true;
-                sttFeedback.value = '🎉 완벽한 발음이에요! 대단해요, LIEUL! 🐬⭐';
+        const evaluateSTTFinal = () => {
+            if (sttSuccess.value) {
                 recordAttempt(currentStage3Item.value.word.id, true);
                 playCorrectSound();
-            } else {
-                sttSuccess.value = false;
-                sttFeedback.value = `💡 '${targetWord}' 단어가 정확히 들리지 않았어요! 다시 한번 소리 내어 도전해보세요! 🌊`;
-                recordAttempt(currentStage3Item.value.word.id, false);
-                playErrorSound();
+            } else if (sttRecognizedText.value) {
+                const targetWords = currentStage3Item.value.word.example.split(/\s+/);
+                if (recognizedWordIndices.value.length >= Math.ceil(targetWords.length * 0.5)) {
+                    sttSuccess.value = true;
+                    sttFeedback.value = '👍 참 잘했어요! 거의 다 맞췄어요! 🌊';
+                    recordAttempt(currentStage3Item.value.word.id, true);
+                    playCorrectSound();
+                } else {
+                    sttFeedback.value = '💡 소리를 조금 더 크고 명확하게 따라해보세요!';
+                    recordAttempt(currentStage3Item.value.word.id, false);
+                    playErrorSound();
+                }
             }
         };
 
@@ -840,13 +854,6 @@ createApp({
             }
         };
 
-        const getMaskedWord = (word) => {
-            if (!word) return '';
-            const str = typeof word === 'string' ? word : (word.english || '');
-            if (!str) return '';
-            return str[0] + ' _'.repeat(str.length - 1);
-        };
-
         const triggerHint = () => {
             if (hintLevel.value < 2) {
                 hintLevel.value++;
@@ -927,13 +934,11 @@ createApp({
         const startStage3 = () => {
             const list = [];
             
-            // 1) 손글씨 필기 챌린지
             const shuffledPencil = [...currentWordList.value].sort(() => 0.5 - Math.random());
             shuffledPencil.forEach(w => {
                 list.push({ word: w, type: 'pencil' });
             });
 
-            // 2) 문장 따라 말하기 (STT) 챌린지
             const exampleWords = currentWordList.value.filter(w => w && w.example);
             const shuffledExample = [...exampleWords].sort(() => 0.5 - Math.random());
             shuffledExample.forEach(w => {
@@ -955,6 +960,7 @@ createApp({
             sttRecognizedText.value = '';
             sttFeedback.value = '';
             sttSuccess.value = false;
+            recognizedWordIndices.value = [];
             stopSTT();
 
             nextTick(() => {
@@ -967,7 +973,8 @@ createApp({
                         }
                         speak(currentStage3Item.value.word.english, 0.75);
                     } else if (currentStage3Item.value.type === 'speaking') {
-                        speakSequence(currentStage3Item.value.word.english, currentStage3Item.value.word.example);
+                        // 단어 빼고 "예문 문장만" 재생!
+                        speak(currentStage3Item.value.word.example, 0.85);
                     }
                 }
             });
@@ -1076,7 +1083,7 @@ createApp({
             return str[0] + ' _'.repeat(str.length - 1);
         };
 
-        // 예외 방어형 예문 강조 로직
+        // 예외 방어형 예문 강조 로직 (정규식 특수문자 안전 이스케이프)
         const getHighlightedExampleMeaning = (word) => {
             if (!word || !word.exampleMeaning) return '';
             let text = word.exampleMeaning;
@@ -1356,7 +1363,6 @@ createApp({
             }
         };
 
-        // ==================== [ 토요일 재도전 모달 상태 ] ====================
         const showSatResetModal = ref(false);
         const satResetType = ref('all');
         
@@ -1561,9 +1567,9 @@ createApp({
             currentWordList, currentWord, learnedInDayCount, startLesson, changeDay, resetDayProgress,
             resetAllProgress, resetWeekProgress, resetDayProgressFromUI, isReplayingDay, restartStage1Only,
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
-            clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
+            clearPracticeInput, clearQuizInput, speak, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
-            getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, nextStage3Question,
+            getMaskedWord, getHighlightedExampleMeaning, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge, satScores,
@@ -1574,7 +1580,7 @@ createApp({
             playFanfareSound, playSadSound, isInputLocked,
             showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
             satStageTotalQuestions, focusInput,
-            isListening, sttRecognizedText, sttFeedback, sttSuccess, isSTTSupported, startSTT, stopSTT, manualPassSTT
+            isListening, sttRecognizedText, sttFeedback, sttSuccess, isSTTSupported, recognizedWordIndices, startSTT, stopSTT, manualPassSTT
         };
     }
 }).mount('#app');
