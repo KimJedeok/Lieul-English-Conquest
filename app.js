@@ -150,20 +150,15 @@ createApp({
             }, 1000);
         };
 
-        // 1. 단계 시작 버튼 클릭 시 호출
         const startSatStage = () => {
             isSatStageStarted.value = true;
-        
             nextTick(() => {
                 focusInput();
-                
                 if (satCurrentWord.value) {
                     if (satStage.value === 1) {
                         satHintText.value = generateSatHint(satCurrentWord.value.english);
                     }
-                    // ⭐ 시작 버튼을 누른 직후 첫 단어 발음 재생
                     speak(satCurrentWord.value.english, 0.75);
-                    
                     if (satStage.value === 3) {
                         startSatTimer();
                     }
@@ -194,10 +189,10 @@ createApp({
         };
 
         const getAccuracyBadgeClass = (rate) => {
-            if (rate === null) return 'bg-purple-50 text-purple-600 border-purple-200';
+            if (rate === null) return 'bg-sky-50 text-sky-600 border-sky-200';
             if (rate >= 80) return 'bg-emerald-100 text-emerald-700 border-emerald-300';
             if (rate >= 50) return 'bg-amber-100 text-amber-700 border-amber-300';
-            return 'bg-pink-100 text-pink-700 border-pink-300';
+            return 'bg-blue-100 text-blue-700 border-blue-300';
         };
 
         const currentIndex = ref(0);
@@ -219,6 +214,120 @@ createApp({
         const stage3List = ref([]);
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
+
+        // ==================== [ 3단계 STT 음성인식 전용 상태 ] ====================
+        const isListening = ref(false);
+        const sttRecognizedText = ref('');
+        const sttFeedback = ref('');
+        const sttSuccess = ref(false);
+        const isSTTSupported = ref(false);
+        let recognition = null;
+
+        const initSTT = () => {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                isSTTSupported.value = true;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'en-US';
+                recognition.continuous = false;
+                recognition.interimResults = true;
+
+                recognition.onstart = () => {
+                    isListening.value = true;
+                    sttRecognizedText.value = '';
+                    sttFeedback.value = '듣고 있어요... 말씀해 주세요! 🎙️';
+                    sttSuccess.value = false;
+                };
+
+                recognition.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    sttRecognizedText.value = transcript;
+                };
+
+                recognition.onerror = (event) => {
+                    isListening.value = false;
+                    if (event.error === 'no-speech') {
+                        sttFeedback.value = '소리가 잘 들리지 않았어요. 다시 마이크를 누르고 말해볼까요? 🎙️';
+                    } else {
+                        sttFeedback.value = `음성 인식 오류 (${event.error}). 다시 시도하시거나 아래 정답 통과 버튼을 누르세요.`;
+                    }
+                    playErrorSound();
+                };
+
+                recognition.onend = () => {
+                    isListening.value = false;
+                    if (sttRecognizedText.value) {
+                        evaluateSTT();
+                    }
+                };
+            } else {
+                isSTTSupported.value = false;
+            }
+        };
+
+        const startSTT = () => {
+            if (!recognition) initSTT();
+            if (!isSTTSupported.value) {
+                alert('이 브라우저는 음성 인식을 지원하지 않습니다. 아래 [정답 처리 및 다음으로] 버튼을 이용해 주세요! 🌊');
+                return;
+            }
+            try {
+                sttRecognizedText.value = '';
+                sttFeedback.value = '말씀해 주세요... 🎙️';
+                recognition.start();
+            } catch (e) {
+                try {
+                    recognition.stop();
+                    recognition.start();
+                } catch (err) {}
+            }
+        };
+
+        const stopSTT = () => {
+            if (recognition && isListening.value) {
+                recognition.stop();
+            }
+        };
+
+        const evaluateSTT = () => {
+            if (!currentStage3Item.value) return;
+            const targetWord = currentStage3Item.value.word.english;
+            const targetExample = currentStage3Item.value.word.example || targetWord;
+
+            const rec = sttRecognizedText.value.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+            const word = targetWord.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+            const example = targetExample.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+
+            const hasWord = rec.includes(word);
+            const exampleWords = example.split(/\s+/).filter(Boolean);
+            const recWords = rec.split(/\s+/).filter(Boolean);
+            const matchedCount = exampleWords.filter(w => recWords.includes(w)).length;
+            const ratio = matchedCount / Math.max(1, exampleWords.length);
+
+            // 초등 5학년 맞춤형 유연 채점 로직
+            if (hasWord && (ratio >= 0.4 || exampleWords.length <= 3 || recWords.length === 1)) {
+                sttSuccess.value = true;
+                sttFeedback.value = '🎉 완벽한 발음이에요! 대단해요, LIEUL! 🐬⭐';
+                recordAttempt(currentStage3Item.value.word.id, true);
+                playCorrectSound();
+            } else {
+                sttSuccess.value = false;
+                sttFeedback.value = `💡 '${targetWord}' 단어가 정확히 들리지 않았어요! 다시 한번 소리 내어 도전해보세요! 🌊`;
+                recordAttempt(currentStage3Item.value.word.id, false);
+                playErrorSound();
+            }
+        };
+
+        const manualPassSTT = () => {
+            if (currentStage3Item.value) {
+                recordAttempt(currentStage3Item.value.word.id, true);
+                playCorrectSound();
+            }
+            nextStage3Question();
+        };
 
         const practiceInput = ref(null);
         const quizInput = ref(null);
@@ -268,11 +377,13 @@ createApp({
                 console.error('데이터 로드 오류:', e);
             }
 
+            initSTT();
             window.addEventListener('resize', handleResize);
         });
 
         onUnmounted(() => {
             stopSatTimer();
+            stopSTT();
             window.removeEventListener('resize', handleResize);
         });
 
@@ -425,7 +536,7 @@ createApp({
                 localStorage.setItem('vocab_saved_date', formattedDate);
             } catch (e) {}
         
-            alert(`✅ 총 ${parsed.length}개 단어가 저장되었습니다! 🌸`);
+            alert(`✅ 총 ${parsed.length}개 단어가 저장되었습니다! 🌊🐬`);
         };
 
         const availableWeeks = computed(() => [...new Set(allWords.value.map(w => Number(w.week) || 1))].sort((a, b) => a - b));
@@ -507,8 +618,8 @@ createApp({
 
         const getDayBtnClass = (week, day) => {
             if (isDayDone(week, day)) return 'bg-emerald-100 text-emerald-700 font-extrabold';
-            if (isDayUnlocked(week, day)) return 'bg-pink-100 text-pink-600 hover:bg-pink-200 border border-pink-200 font-extrabold';
-            return 'bg-purple-50 text-purple-200';
+            if (isDayUnlocked(week, day)) return 'bg-sky-100 text-sky-600 hover:bg-sky-200 border border-sky-200 font-extrabold';
+            return 'bg-blue-50 text-blue-200';
         };
 
         const currentWordList = computed(() => getWords(currentWeek.value, selectedDay.value));
@@ -520,6 +631,7 @@ createApp({
 
         const startLesson = (week, day) => {
             stopSatTimer();
+            stopSTT();
             if (typeof week !== 'number' && typeof week !== 'string') {
                 week = todayLesson.value.week;
                 day = todayLesson.value.day;
@@ -540,6 +652,7 @@ createApp({
 
         const changeDay = (day) => {
             stopSatTimer();
+            stopSTT();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
             selectedDay.value = String(day);
@@ -552,6 +665,7 @@ createApp({
 
         const resetDayProgress = (forceStartOver = false) => {
             stopSatTimer();
+            stopSTT();
             stage3Active.value = false;
             const firstUnlearnedIdx = currentWordList.value.findIndex(w => !isLearned(w));
 
@@ -581,7 +695,7 @@ createApp({
         };
 
         const resetAllProgress = () => {
-            if (confirm('정말로 모든 주차의 학습 진도를 초기화하시겠습니까? 🌸')) {
+            if (confirm('정말로 모든 주차의 학습 진도를 초기화하시겠습니까? 🌊')) {
                 learnedWordIDs.value = [];
                 satCompletedWeeks.value = [];
                 satScores.value = {};
@@ -589,7 +703,7 @@ createApp({
         };
 
         const resetWeekProgress = (week) => {
-            if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌸`)) {
+            if (confirm(`${week}주차의 학습 진도만 초기화하시겠습니까? 🌊`)) {
                 const wStr = String(week);
                 const weekWordIDs = allWords.value.filter(w => String(w.week) === wStr).map(w => w.id);
                 learnedWordIDs.value = learnedWordIDs.value.filter(id => !weekWordIDs.includes(id));
@@ -603,7 +717,7 @@ createApp({
             const d = selectedDay.value;
 
             if (d === 'Sat') {
-                if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌸`)) {
+                if (confirm(`${w}주차 토요일 주말 복습 기록만 초기화하시겠습니까? 🌊`)) {
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     delete satScores.value[w];
                     startSaturdayReview();
@@ -614,7 +728,7 @@ createApp({
                 const affectedWords = allWords.value.filter(word => String(word.week) === String(w) && affectedDays.includes(word.day));
                 const affectedIDs = affectedWords.map(word => word.id);
 
-                if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌸`)) {
+                if (confirm(`${w}주차 ${d}요일부터 금요일까지의 진도를 초기화하시겠습니까? 🌊`)) {
                     learnedWordIDs.value = learnedWordIDs.value.filter(id => !affectedIDs.includes(id));
                     satCompletedWeeks.value = satCompletedWeeks.value.filter(weekNum => String(weekNum) !== String(w));
                     delete satScores.value[w];
@@ -623,7 +737,6 @@ createApp({
             }
         };
 
-        // 입력 폼 자동 포커스 (satInput 및 satInputRef 둘 다 지원)
         const focusInput = () => {
             nextTick(() => {
                 if (selectedDay.value === 'Sat') {
@@ -804,40 +917,23 @@ createApp({
             }
         };
 
-        const generateMCQOptions = (targetWord) => {
-            const options = [targetWord.english];
-            const pool = currentWordList.value.filter(w => w.english.toLowerCase() !== targetWord.english.toLowerCase());
-            const shuffledPool = [...pool].sort(() => 0.5 - Math.random());
-
-            for (let i = 0; i < Math.min(2, shuffledPool.length); i++) {
-                options.push(shuffledPool[i].english);
-            }
-
-            if (options.length < 3) {
-                const globalPool = allWords.value.filter(w => !options.includes(w.english));
-                const shuffledGlobal = [...globalPool].sort(() => 0.5 - Math.random());
-                for (let i = 0; options.length < 3 && i < shuffledGlobal.length; i++) {
-                    options.push(shuffledGlobal[i].english);
-                }
-            }
-            return options.sort(() => 0.5 - Math.random());
-        };
-
+        // ==================== [ 3단계 챌린지 생성 (필기 + STT 따라말하기) ] ====================
         const startStage3 = () => {
             const list = [];
             
+            // 1) 손글씨 필기 챌린지
             const shuffledPencil = [...currentWordList.value].sort(() => 0.5 - Math.random());
             shuffledPencil.forEach(w => {
                 list.push({ word: w, type: 'pencil' });
             });
 
+            // 2) 문장 따라 말하기 (STT) 챌린지
             const exampleWords = currentWordList.value.filter(w => w.example);
             const shuffledExample = [...exampleWords].sort(() => 0.5 - Math.random());
             shuffledExample.forEach(w => {
                 list.push({
                     word: w,
-                    type: 'example',
-                    mcqOptions: generateMCQOptions(w)
+                    type: 'speaking'
                 });
             });
 
@@ -850,6 +946,10 @@ createApp({
 
         const initStage3Question = () => {
             stage3AnswerRevealed.value = false;
+            sttRecognizedText.value = '';
+            sttFeedback.value = '';
+            sttSuccess.value = false;
+            stopSTT();
 
             nextTick(() => {
                 if (currentStage3Item.value) {
@@ -860,7 +960,7 @@ createApp({
                             initPencilCanvas('pencilCanvas');
                         }
                         speak(currentStage3Item.value.word.english, 0.75);
-                    } else if (currentStage3Item.value.type === 'example') {
+                    } else if (currentStage3Item.value.type === 'speaking') {
                         speakSequence(currentStage3Item.value.word.english, currentStage3Item.value.word.example);
                     }
                 }
@@ -868,6 +968,7 @@ createApp({
         };
 
         const nextStage3Question = () => {
+            stopSTT();
             if (stage3Index.value + 1 < stage3List.value.length) {
                 stage3Index.value++;
                 initStage3Question();
@@ -903,20 +1004,19 @@ createApp({
         };
 
         const praiseList = [
-            "🎉 완벽해요! 정답이에요, LIEUL! 💖",
-            "✨ 참 잘했어요, LIEUL! 글씨가 아주 예뻐요! 🌸",
-            "👍 최고예요, LIEUL! 단어를 정확하게 기억하네요! 🦄",
-            "💯 최고입니다! 다음 문제도 도전해봐요. LIEUL! ⭐️",
-            "🌟 대단해요, LIEUL! 완벽하게 잘 썼어요! 🎀"
+            "🎉 완벽해요! 정답이에요, LIEUL! 💙",
+            "✨ 참 잘했어요, LIEUL! 글씨가 아주 예뻐요! 🐬",
+            "👍 최고예요, LIEUL! 단어를 정확하게 기억하네요! ⭐",
+            "💯 최고입니다! 다음 문제도 도전해봐요, LIEUL! 💎",
+            "🌟 대단해요, LIEUL! 완벽하게 잘 썼어요! 🌊"
         ];
 
-        // 토요일 전용 정답 / 오답 응원 메시지 목록
         const satCorrectMessages = [
-            "🎉 완벽해요, LIEUL! 거침없이 정답입니다! 💖",
-            "⚡ 빛의 속도로 정답! LIEUL 역시 실력이 대단해요! ✨",
-            "🔥 스펠링 완벽 파악! LIEUL 아주 훌륭합니다! 🚀",
-            "💯 최고예요, LIEUL! 이 기세로 다음 문제도! ⭐️",
-            "🌟 대단해요! 완벽하게 LIEUL 뇌리에 저장 완료! 🎀"
+            "🎉 완벽해요, LIEUL! 거침없이 정답입니다! 💙",
+            "⚡ 빛의 속도로 정답! LIEUL 역시 실력이 대단해요! ⭐",
+            "🔥 스펠링 완벽 파악! LIEUL 아주 훌륭합니다! 🐬",
+            "💯 최고예요, LIEUL! 이 기세로 다음 문제도! 💎",
+            "🌟 대단해요! 완벽하게 LIEUL 뇌리에 저장 완료! 🌊"
         ];
         
         const satIncorrectMessages = [
@@ -954,7 +1054,7 @@ createApp({
                     playErrorSound();
                     stage3AnswerRevealed.value = true;
                     speak(targetWord, 0.75);
-                    alert(`아쉬워요! AI가 '${result.recognizedText}'(으)로 읽었어요. 정답을 확인하고 다시 써볼까요? ✨`);
+                    alert(`아쉬워요! AI가 '${result.recognizedText}'(으)로 읽었어요. 정답을 확인하고 다시 써볼까요? ⭐`);
                     clearCanvasStrokesOnly();
                 }
             } else {
@@ -978,26 +1078,15 @@ createApp({
             meanings.forEach(m => {
                 if (m && text.includes(m)) {
                     const regex = new RegExp(m, 'g');
-                    text = text.replace(regex, `<span class="text-pink-500 font-extrabold underline decoration-pink-300 decoration-2 underline-offset-2">${m}</span>`);
+                    text = text.replace(regex, `<span class="text-sky-600 font-extrabold underline decoration-sky-300 decoration-2 underline-offset-2">${m}</span>`);
                 }
             });
             return text;
         };
 
-        const submitStage3MCQ = (selectedOpt) => {
-            if (!currentStage3Item.value) return;
-            if (selectedOpt.toLowerCase() === currentStage3Item.value.word.english.toLowerCase()) {
-                recordAttempt(currentStage3Item.value.word.id, true);
-                playCorrectSound();
-                nextStage3Question();
-            } else {
-                recordAttempt(currentStage3Item.value.word.id, false);
-                playErrorSound();
-            }
-        };
-
         const advanceToNextDay = () => {
             stopSatTimer();
+            stopSTT();
             const targetIdx = days.indexOf(selectedDay.value);
             if (targetIdx < days.length - 1) {
                 changeDay(days[targetIdx + 1]);
@@ -1040,11 +1129,12 @@ createApp({
         };
 
         const handleImgError = (e) => {
-            e.target.src = 'https://via.placeholder.com/500x400/fff0f5/db2777?text=No+Image';
+            e.target.src = 'https://via.placeholder.com/500x400/e0f2fe/0284c7?text=No+Image';
         };
 
         const restartStage1Only = () => {
             stopSatTimer();
+            stopSTT();
             currentIndex.value = 0;
             currentMode.value = 'practice';
             practiceCount.value = 0;
@@ -1102,6 +1192,7 @@ createApp({
         
         const startSaturdayReview = () => {
             stopSatTimer();
+            stopSTT();
             clearSatFeedbackTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
@@ -1114,23 +1205,6 @@ createApp({
             const weakList = getWeakWords(15);
             const calculatedTotal = (weakList.length * 2) + weekWords.length;
                     
-          /*  if (isCompleted) {
-                isDayCompleted.value = true;
-                satQuizList.value = weekWords;
-                satTotalQuestions.value = calculatedTotal || 55;
-                
-                if (satScores.value[currentWeek.value] !== undefined) {
-                    satCorrectCount.value = satScores.value[currentWeek.value];
-                } else if (!satCorrectCount.value) {
-                    const correctWordCount = weekWords.filter(w => {
-                        const stat = wordStats.value[w.id];
-                        return stat && stat.correct > 0;
-                    }).length;
-                    
-                    satCorrectCount.value = Math.round((correctWordCount / (weekWords.length || 1)) * 55);
-                }
-                return;
-            }*/
             if (isCompleted) {
                 isDayCompleted.value = true;
                 satQuizList.value = weekWords;
@@ -1139,11 +1213,9 @@ createApp({
                 
                 if (savedScore !== undefined && savedScore !== null) {
                     if (typeof savedScore === 'object') {
-                        // ⭐ 3단계 전용(25문항) 또는 전체(55문항) 복원
                         satCorrectCount.value = savedScore.correct;
                         satTotalQuestions.value = savedScore.total;
                     } else {
-                        // 기존 숫자로 저장되어 있던 기존 데이터 호환
                         satCorrectCount.value = Number(savedScore);
                         satTotalQuestions.value = calculatedTotal || 55;
                     }
@@ -1189,7 +1261,7 @@ createApp({
         });
 
         const satStageThemeClass = computed(() => {
-            if (satStage.value === 1) return 'bg-pink-500 text-white';
+            if (satStage.value === 1) return 'bg-sky-500 text-white';
             if (satStage.value === 2) return 'bg-indigo-600 text-white';
             return 'bg-rose-600 text-white animate-pulse';
         });
@@ -1209,6 +1281,7 @@ createApp({
 
         const restartSaturdayChallenge = () => {
             stopSatTimer();
+            stopSTT();
             clearSatFeedbackTimer();
             isInputLocked.value = false;
         
@@ -1241,6 +1314,7 @@ createApp({
 
         const startSatStage3Only = () => {
             stopSatTimer();
+            stopSTT();
             clearSatFeedbackTimer();
             activeScreen.value = 'learning';
             isReplayingDay.value = false;
@@ -1260,6 +1334,7 @@ createApp({
 
         const advanceFromSat = () => {
             stopSatTimer();
+            stopSTT();
             clearSatFeedbackTimer();
             const weekIdx = availableWeeks.value.indexOf(currentWeek.value);
             if (weekIdx < availableWeeks.value.length - 1) {
@@ -1323,7 +1398,6 @@ createApp({
                 satComboCount.value++;
                 isFeedbackCorrect.value = true;
                 
-                // ⭐ 무작위 칭찬 메시지 선택
                 const randomMsg = satCorrectMessages[Math.floor(Math.random() * satCorrectMessages.length)];
                 feedbackMessage.value = randomMsg;
                 
@@ -1332,7 +1406,6 @@ createApp({
                 satComboCount.value = 0;
                 isFeedbackCorrect.value = false;
                 
-                // ⭐ 무작위격려 메시지 + 정답 표시
                 const randomMsg = satIncorrectMessages[Math.floor(Math.random() * satIncorrectMessages.length)];
                 feedbackMessage.value = `${randomMsg} (정답: ${satCurrentWord.value.english})`;
                         
@@ -1352,7 +1425,6 @@ createApp({
             satComboCount.value = 0;
             isFeedbackCorrect.value = false;
             
-            // ⭐ 시간 초과 전용 동기부여 메시지
             feedbackMessage.value = `⏰ 아쉽게 시간 초과! 다음 문제에서 빠르게 도전해봐요! (정답: ${satCurrentWord.value?.english})`;
             
             playErrorSound();
@@ -1371,7 +1443,7 @@ createApp({
                 satInputText.value = '';
                 feedbackMessage.value = '';
                 isInputLocked.value = false;
-                isSatStageStarted.value = false; // ⭐ 2단계 시작 버튼 대기 상태로 전환
+                isSatStageStarted.value = false;
             } else if (satStage.value === 2) {
                 satStage.value = 3;
                 satWordIndex.value = 0;
@@ -1379,23 +1451,21 @@ createApp({
                 satInputText.value = '';
                 feedbackMessage.value = '';
                 isInputLocked.value = false;
-                isSatStageStarted.value = false; // ⭐ 3단계 시작 버튼 대기 상태로 전환
+                isSatStageStarted.value = false;
             } else {
                 isDayCompleted.value = true;
                 if (!satCompletedWeeks.value.includes(currentWeek.value)) {
                     satCompletedWeeks.value.push(currentWeek.value);
                 }
                 
-                //satScores.value[currentWeek.value] = satCorrectCount.value;
                 satScores.value[currentWeek.value] = {
-                correct: satCorrectCount.value,
-                total: satTotalQuestions.value
+                    correct: satCorrectCount.value,
+                    total: satTotalQuestions.value
                 };
                 playFanfareSound();
             }
         };
 
-        // 3. 같은 단계 내 다음 문제 이동
         const nextSatQuestion = () => {
             clearSatFeedbackTimer();
             satInputText.value = '';
@@ -1415,7 +1485,6 @@ createApp({
                     startSatTimer();
                 }
                 
-                // ⭐ 동일 단계 내에서 다음 단어로 넘어갈 때 발음 재생
                 if (satCurrentWord.value) {
                     speak(satCurrentWord.value.english, 0.75);
                 }
@@ -1430,14 +1499,12 @@ createApp({
             stopSatTimer();
             showSatResetModal.value = false;
             
-            // ⭐ 1. 학습 완료 플래그 해제 및 저장된 완수 기록 제거
             isDayCompleted.value = false;
             satCompletedWeeks.value = satCompletedWeeks.value.filter(
                 w => String(w) !== String(currentWeek.value)
             );
             delete satScores.value[currentWeek.value];
         
-            // ⭐ 2. 단계 시작 버튼 대기 상태로 초기화
             isSatStageStarted.value = false;
             
             satCorrectCount.value = 0;
@@ -1485,7 +1552,7 @@ createApp({
             isCharCorrect, onPracticeInput, onQuizInput, submitPractice, submitQuiz, advanceToNextDay,
             clearPracticeInput, clearQuizInput, speak, speakSequence, getWordImage, handleImgError,
             startStage3, clearCanvas, clearCanvasStrokesOnly, revealPencilAnswer,
-            getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, submitStage3MCQ, nextStage3Question,
+            getMaskedWord, getMaskedExample, getHighlightedExampleMeaning, nextStage3Question,
             satStage, satWordIndex, satQuizList, satCorrectCount, feedbackMessage, isFeedbackCorrect, satComboCount, satCurrentWord,
             satInputText, submitSatAnswer, getWeakWords, startSaturdayReview, getMaskedSpelling20,
             nextSatQuestion, satTimer, timerDisplay, satStageTitle, satStageThemeClass, satTotalQuestions, satHintText, restartSaturdayChallenge, satScores,
@@ -1495,7 +1562,9 @@ createApp({
             advanceFromSat,
             playFanfareSound, playSadSound, isInputLocked,
             showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
-            satStageTotalQuestions, focusInput
+            satStageTotalQuestions, focusInput,
+            // STT 음성인식 상태 및 함수
+            isListening, sttRecognizedText, sttFeedback, sttSuccess, isSTTSupported, startSTT, stopSTT, manualPassSTT
         };
     }
 }).mount('#app');
