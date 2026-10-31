@@ -215,7 +215,7 @@ createApp({
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
 
-        // ==================== [ 3단계 STT 음성인식 전용 상태 ] ====================
+        // ==================== [ 3단계 STT 음성인식 전용 상태 및 예외 보완 ] ====================
         const isListening = ref(false);
         const sttRecognizedText = ref('');
         const sttFeedback = ref('');
@@ -224,46 +224,50 @@ createApp({
         let recognition = null;
 
         const initSTT = () => {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                isSTTSupported.value = true;
-                recognition = new SpeechRecognition();
-                recognition.lang = 'en-US';
-                recognition.continuous = false;
-                recognition.interimResults = true;
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    isSTTSupported.value = true;
+                    recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US';
+                    recognition.continuous = false;
+                    recognition.interimResults = true;
 
-                recognition.onstart = () => {
-                    isListening.value = true;
-                    sttRecognizedText.value = '';
-                    sttFeedback.value = '듣고 있어요... 말씀해 주세요! 🎙️';
-                    sttSuccess.value = false;
-                };
+                    recognition.onstart = () => {
+                        isListening.value = true;
+                        sttRecognizedText.value = '';
+                        sttFeedback.value = '듣고 있어요... 말씀해 주세요! 🎙️';
+                        sttSuccess.value = false;
+                    };
 
-                recognition.onresult = (event) => {
-                    let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        transcript += event.results[i][0].transcript;
-                    }
-                    sttRecognizedText.value = transcript;
-                };
+                    recognition.onresult = (event) => {
+                        let transcript = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            transcript += event.results[i][0].transcript;
+                        }
+                        sttRecognizedText.value = transcript;
+                    };
 
-                recognition.onerror = (event) => {
-                    isListening.value = false;
-                    if (event.error === 'no-speech') {
-                        sttFeedback.value = '소리가 잘 들리지 않았어요. 다시 마이크를 누르고 말해볼까요? 🎙️';
-                    } else {
-                        sttFeedback.value = `음성 인식 오류 (${event.error}). 다시 시도하시거나 아래 정답 통과 버튼을 누르세요.`;
-                    }
-                    playErrorSound();
-                };
+                    recognition.onerror = (event) => {
+                        isListening.value = false;
+                        if (event.error === 'no-speech') {
+                            sttFeedback.value = '소리가 잘 들리지 않았어요. 다시 마이크를 누르고 말해볼까요? 🎙️';
+                        } else {
+                            sttFeedback.value = `음성 인식 안내: 다시 시도하시거나 아래 정답 통과 버튼을 누르세요.`;
+                        }
+                        playErrorSound();
+                    };
 
-                recognition.onend = () => {
-                    isListening.value = false;
-                    if (sttRecognizedText.value) {
-                        evaluateSTT();
-                    }
-                };
-            } else {
+                    recognition.onend = () => {
+                        isListening.value = false;
+                        if (sttRecognizedText.value) {
+                            evaluateSTT();
+                        }
+                    };
+                } else {
+                    isSTTSupported.value = false;
+                }
+            } catch(err) {
                 isSTTSupported.value = false;
             }
         };
@@ -287,14 +291,16 @@ createApp({
         };
 
         const stopSTT = () => {
-            if (recognition && isListening.value) {
-                recognition.stop();
-            }
+            try {
+                if (recognition && isListening.value) {
+                    recognition.stop();
+                }
+            } catch(e) {}
         };
 
         const evaluateSTT = () => {
-            if (!currentStage3Item.value) return;
-            const targetWord = currentStage3Item.value.word.english;
+            if (!currentStage3Item.value || !currentStage3Item.value.word) return;
+            const targetWord = currentStage3Item.value.word.english || '';
             const targetExample = currentStage3Item.value.word.example || targetWord;
 
             const rec = sttRecognizedText.value.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
@@ -322,7 +328,7 @@ createApp({
         };
 
         const manualPassSTT = () => {
-            if (currentStage3Item.value) {
+            if (currentStage3Item.value && currentStage3Item.value.word) {
                 recordAttempt(currentStage3Item.value.word.id, true);
                 playCorrectSound();
             }
@@ -928,7 +934,7 @@ createApp({
             });
 
             // 2) 문장 따라 말하기 (STT) 챌린지
-            const exampleWords = currentWordList.value.filter(w => w.example);
+            const exampleWords = currentWordList.value.filter(w => w && w.example);
             const shuffledExample = [...exampleWords].sort(() => 0.5 - Math.random());
             shuffledExample.forEach(w => {
                 list.push({
@@ -952,7 +958,7 @@ createApp({
             stopSTT();
 
             nextTick(() => {
-                if (currentStage3Item.value) {
+                if (currentStage3Item.value && currentStage3Item.value.word) {
                     if (currentStage3Item.value.type === 'pencil') {
                         resizeCanvas();
                         clearCanvas();
@@ -1027,7 +1033,7 @@ createApp({
         ];
 
         const revealPencilAnswer = async () => {
-            if (!currentStage3Item.value) return;
+            if (!currentStage3Item.value || !currentStage3Item.value.word) return;
             const targetWord = currentStage3Item.value.word.english;
 
             if (typeof checkPencilAnswer === 'function') {
@@ -1063,24 +1069,29 @@ createApp({
             }
         };
 
-        const getMaskedExample = (word) => {
-            if (!word || !word.example) return '';
-            const regex = new RegExp(word.english, 'gi');
-            return word.example.replace(regex, '_______');
+        const getMaskedWord = (word) => {
+            if (!word) return '';
+            const str = typeof word === 'string' ? word : (word.english || '');
+            if (!str) return '';
+            return str[0] + ' _'.repeat(str.length - 1);
         };
 
+        // 예외 방어형 예문 강조 로직
         const getHighlightedExampleMeaning = (word) => {
             if (!word || !word.exampleMeaning) return '';
             let text = word.exampleMeaning;
             if (!word.meaning) return text;
 
-            const meanings = word.meaning.split(/[,/]/).map(m => m.trim()).filter(m => m.length > 0);
-            meanings.forEach(m => {
-                if (m && text.includes(m)) {
-                    const regex = new RegExp(m, 'g');
-                    text = text.replace(regex, `<span class="text-sky-600 font-extrabold underline decoration-sky-300 decoration-2 underline-offset-2">${m}</span>`);
-                }
-            });
+            try {
+                const meanings = word.meaning.split(/[,/]/).map(m => m.trim()).filter(m => m.length > 0);
+                meanings.forEach(m => {
+                    if (m && text.includes(m)) {
+                        const escaped = m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(escaped, 'g');
+                        text = text.replace(regex, `<span class="text-sky-600 font-extrabold underline decoration-sky-300 decoration-2 underline-offset-2">${m}</span>`);
+                    }
+                });
+            } catch(e) {}
             return text;
         };
 
@@ -1563,7 +1574,6 @@ createApp({
             playFanfareSound, playSadSound, isInputLocked,
             showSatResetModal, satResetType, promptRestartSatAll, promptRestartSatStage3, confirmSatReset, cancelSatReset,
             satStageTotalQuestions, focusInput,
-            // STT 음성인식 상태 및 함수
             isListening, sttRecognizedText, sttFeedback, sttSuccess, isSTTSupported, startSTT, stopSTT, manualPassSTT
         };
     }
