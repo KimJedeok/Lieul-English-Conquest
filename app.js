@@ -2,7 +2,7 @@ const { createApp, ref, computed, watch, nextTick, onMounted, onUnmounted } = Vu
 
 createApp({
     setup() {
-        // [오디오 컨텍스트 싱글톤 관리 - 메모리 누수 방지]
+        // [오디오 컨텍스트 관리]
         let audioCtx = null;
         const getAudioContext = () => {
             if (!audioCtx) {
@@ -15,7 +15,7 @@ createApp({
             return audioCtx;
         };
 
-        // ==================== [ 유틸리티 함수: 음성 및 효과음 ] ====================
+        // ==================== [ 효과음 및 음성 지원 ] ====================
         const speak = (text, rate = 0.75) => {
             if (!('speechSynthesis' in window) || !text) return;
             window.speechSynthesis.cancel();
@@ -95,7 +95,7 @@ createApp({
         
         const isSatStageStarted = ref(false);
 
-        // ==================== [ 토요일 복습 커스텀 상태 및 타이머 ] ====================
+        // ==================== [ 토요일 복습 상태 ] ====================
         const satStage = ref(1);
         const satWordIndex = ref(0);
         const satQuizList = ref([]);
@@ -198,7 +198,7 @@ createApp({
         const stage3Index = ref(0);
         const stage3AnswerRevealed = ref(false);
 
-        // ==================== [ 3단계 STT 음성인식 & 노래방 하이라이트 전용 상태 ] ====================
+        // ==================== [ 3단계 STT 음성인식 상태 ] ====================
         const isListening = ref(false);
         const sttRecognizedText = ref('');
         const sttFeedback = ref('');
@@ -207,7 +207,6 @@ createApp({
         const recognizedWordIndices = ref([]);
         let recognition = null;
 
-        // 아이패드 마이크 권한 요청
         const requestMicPermission = async () => {
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -253,8 +252,6 @@ createApp({
                         isListening.value = false;
                         if (event.error === 'no-speech') {
                             sttFeedback.value = '소리가 잘 들리지 않았어요. 마이크를 다시 누르고 말씀해보세요! 🎙️';
-                        } else if (event.error === 'not-allowed') {
-                            alert("🎙️ 마이크 접근이 거부되었습니다. 설정에서 마이크를 허용해주세요!");
                         }
                     };
 
@@ -357,6 +354,8 @@ createApp({
         const fileInput = ref(null);
 
         const showConfirmModal = ref(false);
+        const showSatResetModal = ref(false);
+        const satResetType = ref('all');
 
         const resizeCanvas = () => {
             const canvas = document.getElementById('pencilCanvas');
@@ -930,7 +929,7 @@ createApp({
             }
         };
 
-        // ==================== [ 3단계 챌린지 생성 (필기 + STT 따라말하기) ] ====================
+        // ==================== [ 3단계 챌린지 생성 ] ====================
         const startStage3 = () => {
             const list = [];
             
@@ -973,7 +972,6 @@ createApp({
                         }
                         speak(currentStage3Item.value.word.english, 0.75);
                     } else if (currentStage3Item.value.type === 'speaking') {
-                        // 단어 빼고 "예문 문장만" 재생!
                         speak(currentStage3Item.value.word.example, 0.85);
                     }
                 }
@@ -1083,7 +1081,6 @@ createApp({
             return str[0] + ' _'.repeat(str.length - 1);
         };
 
-        // 예외 방어형 예문 강조 로직 (정규식 특수문자 안전 이스케이프)
         const getHighlightedExampleMeaning = (word) => {
             if (!word || !word.exampleMeaning) return '';
             let text = word.exampleMeaning;
@@ -1363,9 +1360,6 @@ createApp({
             }
         };
 
-        const showSatResetModal = ref(false);
-        const satResetType = ref('all');
-        
         const promptRestartSatAll = () => {
             satResetType.value = 'all';
             showSatResetModal.value = true;
