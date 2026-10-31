@@ -163,8 +163,8 @@
                 </button>
             </div>
 
-            <!-- 📢 공통 실시간 피드백 영역 (평일용) -->
-            <div v-if="feedbackMessage && selectedDay !== 'Sat'" 
+            <!-- 📢 공통 실시간 피드백 영역 (평일 1,2단계용) -->
+            <div v-if="feedbackMessage && selectedDay !== 'Sat' && !stage3Active" 
                  :class="[
                      'p-3.5 rounded-2xl text-center font-black text-base shadow-md border-2 transition-all duration-300 animate-bounce flex-shrink-0 flex items-center justify-center gap-2',
                      isFeedbackCorrect ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-rose-100 border-rose-400 text-rose-800'
@@ -389,7 +389,7 @@
             </div>
 
             <!-- ---------------------------------------------------- -->
-            <!-- [CASE 3] 평일(월~금) 3단계 종합 테스트 화면 (노래방 STT 하이라이트) -->
+            <!-- [CASE 3] 평일 3단계 테스트 화면 (개선된 UI & 고대비 하단 피드백) -->
             <!-- ---------------------------------------------------- -->
             <div v-else-if="stage3Active && currentStage3Item" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-sky-100 flex-1 flex flex-col justify-between space-y-2 overflow-hidden">
                 <div class="text-center bg-sky-100 text-sky-800 py-1 px-3 rounded-full text-xs font-extrabold w-fit mx-auto flex-shrink-0">
@@ -437,15 +437,15 @@
                     </div>
                 </div>
 
-                <!-- TYPE B: 문장 따라 말하기 (노래방 스타일 실시간 단어 채우기 STT) -->
-                <div v-else-if="currentStage3Item.type === 'speaking' && currentStage3Item.word" class="flex-1 flex flex-col justify-between space-y-3 min-h-0">
+                <!-- TYPE B: 실시간 음성 따라 말하기 (대형 마이크 & 고대비 피드백 UI) -->
+                <div v-else-if="currentStage3Item.type === 'speaking' && currentStage3Item.word" class="flex-1 flex flex-col justify-between space-y-2 min-h-0">
                     <div class="text-center space-y-0.5 flex-shrink-0">
-                        <span class="text-[11px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">🎙️ 실시간 따라 말하기</span>
-                        <h3 class="text-base font-extrabold text-blue-900">말을 하면 들린 단어의 색깔이 파랗게 채워져요!</h3>
+                        <span class="text-[11px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">🎙️ 실시간 음성 학습</span>
+                        <h3 class="text-base font-extrabold text-blue-900">소리를 잘 듣고 파란색 문장을 맞춰보세요!</h3>
                     </div>
 
-                    <!-- 🎶 실시간 단어 색상 반응 예문 카드 -->
-                    <div class="bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 border-3 border-sky-300 p-6 rounded-3xl text-center space-y-3 shadow-md flex-shrink-0">
+                    <!-- 🎶 예문 문장 실시간 단어 색상 반응 카드 -->
+                    <div class="bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 border-3 border-sky-300 p-5 rounded-3xl text-center space-y-2 shadow-md flex-shrink-0">
                         <div class="text-2xl md:text-3xl font-black leading-relaxed flex flex-wrap justify-center gap-x-2.5 gap-y-1">
                             <span v-for="(word, idx) in currentStage3Item.word.example.split(/\s+/)" 
                                   :key="idx"
@@ -461,40 +461,81 @@
                             ({{ currentStage3Item.word.exampleMeaning }})
                         </div>
 
-                        <button @click="speak(currentStage3Item.word.example, 0.85)" 
-                                class="text-xs font-extrabold text-blue-600 bg-white hover:bg-sky-50 px-3.5 py-1.5 rounded-xl border border-sky-200 transition inline-flex items-center gap-1 shadow-sm active:scale-95">
-                            🔊 예문 전체 소리 다시 듣기 ⭐
+                        <button @click="speakSentenceTwice(currentStage3Item.word.example)" 
+                                :disabled="isSpeakingAudio"
+                                class="text-xs font-extrabold text-blue-600 bg-white hover:bg-sky-50 px-3.5 py-1.5 rounded-xl border border-sky-200 transition inline-flex items-center gap-1 shadow-sm active:scale-95 disabled:opacity-50">
+                            🔊 문장 2번 천천히 다시 듣기 ⭐
                         </button>
                     </div>
 
-                    <!-- 마이크 동작 및 인식 상태 -->
-                    <div class="bg-white border-2 border-sky-100 p-4 rounded-2xl text-center space-y-2 shadow-inner flex-1 flex flex-col justify-center items-center">
-                        <button @click="isListening ? stopSTT() : startSTT()" 
-                                :class="isListening ? 'bg-rose-500 hover:bg-rose-600 animate-pulse ring-4 ring-rose-200' : 'bg-sky-500 hover:bg-sky-600 shadow-lg'"
-                                class="w-20 h-20 rounded-full text-white text-3xl transition flex items-center justify-center mx-auto active:scale-90">
-                            {{ isListening ? '⏹️' : '🎙️' }}
-                        </button>
+                    <!-- 🎙️ 3중 펄스 애니메이션 대형 마이크 영역 -->
+                    <div class="bg-white border-2 border-sky-100 p-4 rounded-2xl text-center space-y-3 shadow-inner flex-1 flex flex-col justify-center items-center relative overflow-hidden">
                         
-                        <div class="text-xs font-extrabold text-sky-600">
-                            {{ isListening ? '아이가 말하는 단어를 실시간으로 듣는 중... 🎧' : '마이크를 누르고 큰 소리로 읽어보세요!' }}
+                        <!-- 마이크 미시작 시: 큰 터치 시작 버튼 -->
+                        <div v-if="!isSTTStartedByTouch">
+                            <button @click="startStage3SpeakingSession" 
+                                    class="bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black text-lg px-8 py-5 rounded-3xl shadow-xl transition transform active:scale-95 flex items-center gap-3 border-4 border-white animate-bounce">
+                                <span class="text-3xl">🎙️</span>
+                                <span>3단계 음성 학습 시작하기</span>
+                            </button>
                         </div>
 
-                        <div v-if="sttFeedback" 
-                             :class="sttSuccess ? 'bg-emerald-100 text-emerald-800 border-emerald-400 scale-105' : 'bg-sky-50 text-sky-800 border-sky-200'"
-                             class="p-2.5 rounded-xl border text-xs font-extrabold max-w-md w-full transition-all">
-                            {{ sttFeedback }}
+                        <!-- 마이크 시작 후: 대형 시인성 마이크 버튼 + 파동 애니메이션 -->
+                        <div v-else class="relative flex flex-col items-center justify-center space-y-2">
+                            <div class="relative flex items-center justify-center">
+                                <!-- 잔물결 파동 링 (Listening 시 가동) -->
+                                <div v-if="isListening" class="absolute w-32 h-32 rounded-full bg-rose-400/40 animate-ping"></div>
+                                <div v-if="isListening" class="absolute w-28 h-28 rounded-full bg-rose-300/60 animate-pulse"></div>
+                                
+                                <button @click="isListening ? stopSTT() : startSTT()" 
+                                        :disabled="isSpeakingAudio"
+                                        :class="isListening 
+                                                ? 'bg-rose-500 ring-8 ring-rose-200 scale-105 shadow-2xl' 
+                                                : (isSpeakingAudio ? 'bg-sky-300' : 'bg-sky-500 hover:bg-sky-600 shadow-xl')"
+                                        class="w-24 h-24 rounded-full text-white text-4xl transition duration-300 flex items-center justify-center relative z-10 active:scale-90 border-4 border-white">
+                                    {{ isSpeakingAudio ? '🔊' : (isListening ? '⏹️' : '🎙️') }}
+                                </button>
+                            </div>
+
+                            <!-- 실시간 오디오 이퀄라이저 막대 그래픽 -->
+                            <div v-if="isListening" class="flex gap-1 items-end h-5 pt-1">
+                                <span class="w-1.5 h-full bg-rose-500 rounded-full animate-bounce"></span>
+                                <span class="w-1.5 h-3/4 bg-rose-400 rounded-full animate-pulse"></span>
+                                <span class="w-1.5 h-full bg-rose-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                                <span class="w-1.5 h-1/2 bg-rose-300 rounded-full animate-pulse"></span>
+                                <span class="w-1.5 h-full bg-rose-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                            </div>
+
+                            <div class="text-xs font-black text-sky-700">
+                                {{ sttStatusText }}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 📢 최하단 전용 고대비 피드백 영역 (폰트 키우고 확실한 색상 구분) -->
+                    <div class="flex-shrink-0 pt-1">
+                        <div :class="[
+                                sttFeedbackObj.type === 'success' ? 'bg-emerald-500 text-white border-emerald-600' : '',
+                                sttFeedbackObj.type === 'warn' ? 'bg-amber-400 text-amber-950 border-amber-500' : '',
+                                sttFeedbackObj.type === 'error' ? 'bg-rose-500 text-white border-rose-600' : '',
+                                sttFeedbackObj.type === 'info' ? 'bg-sky-500 text-white border-sky-600' : ''
+                             ]"
+                             class="p-4 rounded-2xl border-3 shadow-lg text-center space-y-1 transition-all duration-300">
+                            
+                            <div class="text-base md:text-lg font-black flex items-center justify-center gap-2">
+                                <span class="text-2xl">
+                                    {{ sttFeedbackObj.type === 'success' ? '🎉' : (sttFeedbackObj.type === 'warn' ? '💡' : (sttFeedbackObj.type === 'error' ? '😢' : '💬')) }}
+                                </span>
+                                <span>{{ sttFeedbackObj.text }}</span>
+                            </div>
+
+                            <div v-if="aiRecognizedText" class="text-xs font-extrabold opacity-90 bg-black/10 py-1 px-3 rounded-lg inline-block">
+                                AI 인식 텍스트: "{{ aiRecognizedText }}"
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 하단 제어 버튼 -->
-                    <div class="flex gap-2 flex-shrink-0">
-                        <button v-if="!sttSuccess" @click="manualPassSTT" class="flex-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-extrabold py-2.5 rounded-xl text-xs border border-sky-200 transition">
-                            선생님/보호자 확인 (정답 처리) 💖
-                        </button>
-                        <button v-if="sttSuccess" @click="nextStage3Question" class="w-full bg-gradient-to-r from-teal-400 to-emerald-400 text-white font-extrabold py-2.5 rounded-xl shadow-md text-xs transition animate-bounce">
-                            다음 문제로 💙
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -732,7 +773,7 @@
             </div>
         </div>
 
-        <!-- ==================== [ SATURDAY RESET MODAL (안전한 조건문 수정 완료) ] ==================== -->
+        <!-- ==================== [ SATURDAY RESET MODAL ] ==================== -->
         <div v-if="showSatResetModal" class="fixed inset-0 bg-blue-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 text-center border-4 border-sky-100">
                 <div class="text-4xl animate-bounce">🔄</div>
@@ -770,6 +811,6 @@
     <!-- 모듈 스크립트 연결 -->
     <script src="db.js"></script>
     <script src="audio.js"></script>
-    <script src="app.js?v=2.3"></script>
+    <script src="app.js?v=2.4"></script>
 </body>
 </html>
