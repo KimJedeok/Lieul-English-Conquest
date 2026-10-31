@@ -180,7 +180,6 @@
                 
                 <!-- [CASE 1-A] 토요일 완주 전용 결과 화면 -->
                 <template v-if="selectedDay === 'Sat'">
-                    <!-- 토요일 상단 헤더 -->
                     <div class="flex justify-between items-center bg-gradient-to-r from-blue-600 via-sky-500 to-teal-400 text-white p-3.5 rounded-2xl shadow-md flex-shrink-0">
                         <div class="flex items-center gap-3">
                             <span class="text-3xl">🏆</span>
@@ -191,21 +190,18 @@
                         </div>
                     </div>
 
-                    <!-- 토요일 점수 및 판정 카드 -->
                     <div class="text-center space-y-3 p-4 bg-gradient-to-b from-sky-50 to-blue-50 rounded-2xl border-2 border-sky-200 flex-shrink-0 shadow-sm">
                         <div class="text-2xl font-black text-blue-900">
                             최종 점수: <span class="text-sky-600 text-3xl">{{ Math.round((satCorrectCount / satTotalQuestions) * 100) }}점</span>
                             <div class="text-xs text-sky-500 font-bold mt-1">({{ satCorrectCount }} / {{ satTotalQuestions }} 문제 맞힘)</div>
                         </div>
 
-                        <!-- 80% 이상 합격 -->
                         <div v-if="(satCorrectCount / satTotalQuestions) >= 0.8" class="space-y-1 bg-white/80 p-3 rounded-xl border border-sky-200">
                             <div class="text-2xl">🎉 👑 🏅</div>
                             <h3 class="text-sm font-black text-sky-900">주말 챌린지 완벽 성공!</h3>
                             <p class="text-xs font-bold text-blue-600">한 주 동안 배운 단어들을 멋지게 마스터했어요! ⭐</p>
                         </div>
 
-                        <!-- 80% 미만 재도전 -->
                         <div v-else class="space-y-1 bg-white/80 p-3 rounded-xl border border-blue-200">
                             <div class="text-2xl">💪 🌊 🌱</div>
                             <h3 class="text-sm font-black text-blue-800">아쉬워요! 조금만 더 하면 돼요!</h3>
@@ -216,7 +212,6 @@
                         </div>
                     </div>
 
-                    <!-- 토요일 학습 단어 목록 (스크롤 가능 영역) -->
                     <div class="flex-1 overflow-y-auto pr-1 min-h-0">
                         <h4 class="text-xs font-extrabold text-blue-800 mb-2 flex items-center gap-1">📖 주간 복습 단어</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -232,7 +227,6 @@
                         </div>
                     </div>
 
-                    <!-- 토요일 전용 하단 버튼 -->
                     <div class="flex gap-2 pt-2 border-t border-sky-100 flex-shrink-0">
                         <button @click="promptRestartSatAll" class="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 font-extrabold py-2.5 rounded-xl text-xs transition border border-blue-300">
                             🔄 토요일 챌린지 다시도전
@@ -300,15 +294,12 @@
             <!-- ---------------------------------------------------- -->
             <div v-else-if="selectedDay === 'Sat' && !isDayCompleted" class="grid grid-cols-1 md:grid-cols-12 gap-6 p-4 max-w-6xl mx-auto">
                 
-                <!-- [왼쪽 영역] 설명, 피드백, 3단계 타이머, 시작 버튼 -->
                 <div class="md:col-span-5 bg-white p-6 rounded-2xl shadow-lg border border-sky-100 flex flex-col justify-between">
                     <div>
-                        <!-- 단계 배지 및 제목 -->
                         <div :class="satStageThemeClass" class="inline-block px-3 py-1.5 rounded-full text-xs font-bold mb-4 shadow-sm">
                             {{ satStageTitle }}
                         </div>
             
-                        <!-- 단계별 상세 설명 -->
                         <div class="bg-sky-50/60 p-3 rounded-xl border border-sky-100 space-y-1">
                             <h4 class="font-extrabold text-blue-900 text-xs flex items-center gap-1">💡 학습 안내</h4>
                             <p v-if="satStage === 1" class="text-[11px] text-blue-700 leading-relaxed font-semibold">
@@ -322,13 +313,11 @@
                             </p>
                         </div>
             
-                        <!-- 3단계 전용 타이머 -->
                         <div v-if="satStage === 3 && isSatStageStarted" class="my-4 p-5 bg-rose-50 rounded-2xl border-2 border-rose-200 text-center shadow-inner">
                             <span class="text-xs font-extrabold text-rose-500 uppercase tracking-wider">Remaining Time</span>
                             <div class="text-5xl font-black text-rose-600 animate-pulse mt-1">{{ satTimer }}초</div>
                         </div>
             
-                        <!-- 정답/오답 상세 피드백 -->
                         <div v-if="feedbackMessage" 
                              :class="isFeedbackCorrect ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'" 
                              class="w-full break-words whitespace-normal p-4 rounded-xl border-2 text-sm font-bold shadow-sm transition-all mt-4">
@@ -336,7 +325,6 @@
                         </div>
                     </div>
             
-                    <!-- 시작하기 버튼 -->
                     <button v-if="!isSatStageStarted" 
                             @click="startSatStage" 
                             class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 mt-6 flex items-center justify-center gap-2">
@@ -344,7 +332,6 @@
                     </button>
                 </div>
             
-                <!-- [오른쪽 영역] 현 문제 출력 및 입력 폼 -->
                 <div class="md:col-span-7 bg-white p-6 rounded-2xl shadow-lg border border-sky-100 flex flex-col justify-center items-center relative min-h-[380px]">
                     
                     <div v-if="!isSatStageStarted" class="text-center text-gray-400 py-12">
@@ -402,7 +389,7 @@
             </div>
 
             <!-- ---------------------------------------------------- -->
-            <!-- [CASE 3] 평일(월~금) 3단계 종합 테스트 화면 -->
+            <!-- [CASE 3] 평일(월~금) 3단계 종합 테스트 화면 (안전 바인딩) -->
             <!-- ---------------------------------------------------- -->
             <div v-else-if="stage3Active && currentStage3Item" class="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-sky-100 flex-1 flex flex-col justify-between space-y-2 overflow-hidden">
                 <div class="text-center bg-sky-100 text-sky-800 py-1 px-3 rounded-full text-xs font-extrabold w-fit mx-auto flex-shrink-0">
@@ -410,7 +397,7 @@
                 </div>
 
                 <!-- TYPE A: 손글씨 쓰기 (Pencil Challenge) -->
-                <div v-if="currentStage3Item.type === 'pencil'" class="flex-1 flex flex-col space-y-2 min-h-0">
+                <div v-if="currentStage3Item.type === 'pencil' && currentStage3Item.word" class="flex-1 flex flex-col space-y-2 min-h-0">
                     <div class="text-center space-y-0.5 flex-shrink-0">
                         <span class="text-[11px] font-extrabold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">✍️ 예쁘게 글씨 쓰기</span>
                         <h3 class="text-base font-extrabold text-blue-900">'{{ currentStage3Item.word.meaning }}'을(를) 맞춰서 써보세요!</h3>
@@ -450,8 +437,8 @@
                     </div>
                 </div>
 
-                <!-- TYPE B: 문장 따라 말하기 (STT Speaking Challenge - 전면 개편) -->
-                <div v-else-if="currentStage3Item.type === 'speaking'" class="flex-1 flex flex-col justify-between space-y-3 min-h-0">
+                <!-- TYPE B: 문장 따라 말하기 (STT Speaking Challenge - 안전성 강화) -->
+                <div v-else-if="currentStage3Item.type === 'speaking' && currentStage3Item.word" class="flex-1 flex flex-col justify-between space-y-3 min-h-0">
                     <div class="text-center space-y-0.5 flex-shrink-0">
                         <span class="text-[11px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">🎙️ 소리 내어 따라 말하기 (STT)</span>
                         <h3 class="text-base font-extrabold text-blue-900">예문 소리를 듣고 큰 소리로 따라해 보세요!</h3>
@@ -483,12 +470,10 @@
                             {{ isListening ? '아이가 말하는 소리를 듣고 있어요... 🎧' : '마이크 버튼을 누르고 말씀하세요!' }}
                         </div>
 
-                        <!-- 실시간 인식 텍스트 출력 -->
                         <div v-if="sttRecognizedText" class="p-2.5 bg-sky-50 rounded-xl border border-sky-200 text-sm font-extrabold text-blue-900 max-w-md w-full break-words">
                             🗣️ 인식된 발음: "<span class="text-sky-600">{{ sttRecognizedText }}</span>"
                         </div>
 
-                        <!-- 피드백 메시지 -->
                         <div v-if="sttFeedback" 
                              :class="sttSuccess ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
                              class="p-2.5 rounded-xl border text-xs font-extrabold max-w-md w-full">
@@ -776,6 +761,6 @@
     <!-- 모듈 스크립트 연결 -->
     <script src="db.js"></script>
     <script src="audio.js"></script>
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>
